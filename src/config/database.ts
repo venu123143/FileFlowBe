@@ -1,12 +1,9 @@
 import { Sequelize } from "sequelize";
 import db_config from "@/config/db.config";
 import config from "@/config/config";
+import { initializeModels } from "@/models";
 
-// import UserModel from "@/services/auth-service/models/user.model";
-// import UserSessionModel from "@/services/auth-service/models/user_sessions.model";
-// import UserPreferencesModel from "@/services/auth-service/models/user_preference.model";
-// import UserAddressModel from "@/services/auth-service/models/user_address.model";
-// // Get current environment (default to development)
+// Get current environment (default to development)
 const env = config.ENVIRONMENT as keyof typeof db_config;
 const dbConfig = db_config[env];
 
@@ -30,13 +27,13 @@ connection.authenticate()
         console.error("Unable to connect to the database:", error.message);
     });
 
+// Initialize all models with associations
+const models = initializeModels(connection);
+
 const db = {
     Sequelize,
     connection,
-    // User: UserModel(connection),
-    // UserSession: UserSessionModel(connection),
-    // UserPreferences: UserPreferencesModel(connection),
-    // UserAddress: UserAddressModel(connection),
+    ...models,
 }
 
 // Sync database tables. don't use this in production
