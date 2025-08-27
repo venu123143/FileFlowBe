@@ -1,4 +1,4 @@
-import { DataTypes, Model, Optional, Sequelize } from 'sequelize';
+import { DataTypes, Model, type Optional, Sequelize } from 'sequelize';
 
 // Define the attributes interface
 export interface StorageAnalyticsAttributes {
@@ -176,9 +176,6 @@ export const StorageAnalyticsModel = (sequelize: Sequelize) => {
             tableName: 'storage_analytics',
             timestamps: false, // We only have created_at, not updated_at
             indexes: [
-                {
-                    fields: ['user_id', 'date'],
-                },
                 {
                     fields: ['date'],
                 },
