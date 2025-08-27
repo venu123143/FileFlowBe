@@ -1,0 +1,39 @@
+{
+  "name": "fileflowbe",
+  "module": "index.ts",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "dev": "bun run --hot src/index.ts",
+    "lint": "eslint --ext .ts src/",
+    "start": "bun run lint && bun run dev",
+    "docs": "bunx @compodoc/compodoc -p tsconfig.json -s src --name 'Ridewave user-service API Documentation'"
+  },
+  "engines": {
+    "bun": "1.2.15"
+  },
+  "devDependencies": {
+    "@compodoc/compodoc": "^1.1.26",
+    "@types/bun": "latest",
+    "@types/jsonwebtoken": "^9.0.10",
+    "@types/node": "^24.3.0",
+    "@typescript-eslint/eslint-plugin": "^8.41.0",
+    "@typescript-eslint/parser": "^8.41.0",
+    "eslint": "^9.34.0",
+    "typescript-eslint": "^8.41.0"
+  },
+  "peerDependencies": {
+    "typescript": "^5.9.2"
+  },
+  "dependencies": {
+    "hono": "^4.9.4",
+    "hono-sessions": "^0.8.0",
+    "ioredis": "^5.7.0",
+    "joi": "^18.0.1",
+    "jsonwebtoken": "^9.0.2",
+    "pg": "^8.16.3",
+    "pg-hstore": "^2.3.4",
+    "sequelize": "^6.37.7",
+    "winston": "^3.17.0"
+  }
+}
