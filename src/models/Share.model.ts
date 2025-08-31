@@ -1,5 +1,10 @@
 import { DataTypes, Model, type Optional, Sequelize } from 'sequelize';
-import { SharePermission } from './enums';
+
+export enum SharePermission {
+    VIEW = 'view',
+    EDIT = 'edit',
+    ADMIN = 'admin',
+}
 
 // Define the attributes interface
 export interface ShareAttributes {

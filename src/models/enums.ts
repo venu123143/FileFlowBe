@@ -1,11 +1,5 @@
 // Database enums for the file storage application
 
-export enum SharePermission {
-    VIEW = 'view',
-    EDIT = 'edit',
-    ADMIN = 'admin',
-}
-
 export enum AccessAction {
     VIEW = 'view',
     DOWNLOAD = 'download',

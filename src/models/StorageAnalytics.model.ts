@@ -50,7 +50,6 @@ export class StorageAnalytics extends Model<StorageAnalyticsAttributes, StorageA
     declare downloads_today: number;
     declare shares_created_today: number;
     declare public_links_created_today: number;
-    declare created_at: Date;
 
     // Timestamps
     declare readonly created_at: Date;
