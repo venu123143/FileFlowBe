@@ -196,7 +196,7 @@ class AuditLogger {
             this.logger.end();
         });
     }
-}
+}  
 
 // Middleware for Hono
 const createAuditMiddleware = (auditLogger: AuditLogger) => {

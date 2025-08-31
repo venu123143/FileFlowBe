@@ -2,7 +2,7 @@ import { DataTypes, Model, Op, type Optional, Sequelize } from 'sequelize';
 
 // Define the attributes interface
 export interface FileAttributes {
-    file_id: string;
+    id: string;
     owner_id: string;
     parent_id?: string;
     name: string;
@@ -26,17 +26,15 @@ export interface FileAttributes {
     description?: string;
     tags: string[];
     metadata: Record<string, any>;
-    created_at: Date;
-    updated_at: Date;
     last_accessed_at?: Date;
 }
 
 // Define the creation attributes
-export interface FileCreationAttributes extends Optional<FileAttributes, 'file_id' | 'created_at' | 'updated_at' | 'is_folder' | 'file_size' | 'is_public' | 'is_deleted' | 'version' | 'tags' | 'metadata'> { }
+export interface FileCreationAttributes extends Optional<FileAttributes, 'id' | 'is_folder' | 'file_size' | 'is_public' | 'is_deleted' | 'version' | 'tags' | 'metadata'> { }
 
 // Define the File model class
 export class File extends Model<FileAttributes, FileCreationAttributes> implements FileAttributes {
-    public file_id!: string;
+    public id!: string;
     public owner_id!: string;
     public parent_id?: string;
     public name!: string;
@@ -60,20 +58,18 @@ export class File extends Model<FileAttributes, FileCreationAttributes> implemen
     public description?: string;
     public tags!: string[];
     public metadata!: Record<string, any>;
-    public created_at!: Date;
-    public updated_at!: Date;
     public last_accessed_at?: Date;
 
     // Timestamps
-    public readonly createdAt!: Date;
-    public readonly updatedAt!: Date;
+    public readonly created_at!: Date;
+    public readonly updated_at!: Date;
 }
 
 // Define the model function
 export const FileModel = (sequelize: Sequelize) => {
     File.init(
         {
-            file_id: {
+            id: {
                 type: DataTypes.UUID,
                 defaultValue: DataTypes.UUIDV4,
                 primaryKey: true,
@@ -83,7 +79,7 @@ export const FileModel = (sequelize: Sequelize) => {
                 allowNull: false,
                 references: {
                     model: 'users',
-                    key: 'user_id',
+                    key: 'id',
                 },
                 onDelete: 'CASCADE',
             },
@@ -92,7 +88,7 @@ export const FileModel = (sequelize: Sequelize) => {
                 allowNull: true,
                 references: {
                     model: 'files',
-                    key: 'file_id',
+                    key: 'id',
                 },
                 onDelete: 'CASCADE',
             },
@@ -166,7 +162,7 @@ export const FileModel = (sequelize: Sequelize) => {
                 allowNull: true,
                 references: {
                     model: 'users',
-                    key: 'user_id',
+                    key: 'id',
                 },
             },
             auto_delete_at: {
@@ -190,16 +186,6 @@ export const FileModel = (sequelize: Sequelize) => {
             metadata: {
                 type: DataTypes.JSONB,
                 defaultValue: {},
-                allowNull: false,
-            },
-            created_at: {
-                type: DataTypes.DATE,
-                defaultValue: DataTypes.NOW,
-                allowNull: false,
-            },
-            updated_at: {
-                type: DataTypes.DATE,
-                defaultValue: DataTypes.NOW,
                 allowNull: false,
             },
             last_accessed_at: {

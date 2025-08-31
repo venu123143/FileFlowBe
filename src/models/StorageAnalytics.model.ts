@@ -2,7 +2,7 @@ import { DataTypes, Model, type Optional, Sequelize } from 'sequelize';
 
 // Define the attributes interface
 export interface StorageAnalyticsAttributes {
-    analytics_id: string;
+    id: string;
     user_id: string;
     date: Date;
     total_files: number;
@@ -26,11 +26,11 @@ export interface StorageAnalyticsAttributes {
 }
 
 // Define the creation attributes
-export interface StorageAnalyticsCreationAttributes extends Optional<StorageAnalyticsAttributes, 'analytics_id' | 'created_at' | 'total_files' | 'total_folders' | 'total_size' | 'images_count' | 'images_size' | 'videos_count' | 'videos_size' | 'audio_count' | 'audio_size' | 'documents_count' | 'documents_size' | 'other_count' | 'other_size' | 'uploads_today' | 'downloads_today' | 'shares_created_today' | 'public_links_created_today'> {}
+export interface StorageAnalyticsCreationAttributes extends Optional<StorageAnalyticsAttributes, 'id' | 'created_at' | 'total_files' | 'total_folders' | 'total_size' | 'images_count' | 'images_size' | 'videos_count' | 'videos_size' | 'audio_count' | 'audio_size' | 'documents_count' | 'documents_size' | 'other_count' | 'other_size' | 'uploads_today' | 'downloads_today' | 'shares_created_today' | 'public_links_created_today'> {}
 
 // Define the StorageAnalytics model class
 export class StorageAnalytics extends Model<StorageAnalyticsAttributes, StorageAnalyticsCreationAttributes> implements StorageAnalyticsAttributes {
-    public analytics_id!: string;
+    public id!: string;
     public user_id!: string;
     public date!: Date;
     public total_files!: number;
@@ -53,15 +53,15 @@ export class StorageAnalytics extends Model<StorageAnalyticsAttributes, StorageA
     public created_at!: Date;
 
     // Timestamps
-    public readonly createdAt!: Date;
-    public readonly updatedAt!: Date;
+    public readonly created_at!: Date;
+    public readonly updated_at!: Date;
 }
 
 // Define the model function
 export const StorageAnalyticsModel = (sequelize: Sequelize) => {
     StorageAnalytics.init(
         {
-            analytics_id: {
+            id: {
                 type: DataTypes.UUID,
                 defaultValue: DataTypes.UUIDV4,
                 primaryKey: true,
@@ -71,7 +71,7 @@ export const StorageAnalyticsModel = (sequelize: Sequelize) => {
                 allowNull: false,
                 references: {
                     model: 'users',
-                    key: 'user_id',
+                    key: 'id',
                 },
                 onDelete: 'CASCADE',
             },

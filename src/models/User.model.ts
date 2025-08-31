@@ -1,17 +1,13 @@
-import { DataTypes, Model,type Optional, Sequelize } from 'sequelize';
+import { DataTypes, Model, type Optional, Sequelize } from 'sequelize';
 
 // Define the attributes interface
 export interface UserAttributes {
-    user_id: string;
-    username: string;
+    id: string;
     email: string;
     password_hash: string;
     display_name?: string;
     avatar_url?: string;
     storage_quota: number;
-    is_premium: boolean;
-    created_at: Date;
-    updated_at: Date;
     last_login?: Date;
     is_active: boolean;
     email_verified: boolean;
@@ -20,20 +16,16 @@ export interface UserAttributes {
 }
 
 // Define the creation attributes (optional fields for creation)
-export interface UserCreationAttributes extends Optional<UserAttributes, 'user_id' | 'created_at' | 'updated_at' | 'storage_quota' | 'is_premium' | 'is_active' | 'email_verified' | 'two_factor_enabled' | 'preferences'> {}
+export interface UserCreationAttributes extends Optional<UserAttributes, 'id' | 'storage_quota' | 'is_active' | 'email_verified' | 'two_factor_enabled' | 'preferences'> { }
 
 // Define the User model class
 export class User extends Model<UserAttributes, UserCreationAttributes> implements UserAttributes {
-    public user_id!: string;
-    public username!: string;
+    public id!: string;
     public email!: string;
     public password_hash!: string;
     public display_name?: string;
     public avatar_url?: string;
     public storage_quota!: number;
-    public is_premium!: boolean;
-    public created_at!: Date;
-    public updated_at!: Date;
     public last_login?: Date;
     public is_active!: boolean;
     public email_verified!: boolean;
@@ -41,23 +33,18 @@ export class User extends Model<UserAttributes, UserCreationAttributes> implemen
     public preferences!: Record<string, any>;
 
     // Timestamps
-    public readonly createdAt!: Date;
-    public readonly updatedAt!: Date;
+    public readonly created_at!: Date;
+    public readonly updated_at!: Date;
 }
 
 // Define the model function
 export const UserModel = (sequelize: Sequelize) => {
     User.init(
         {
-            user_id: {
+            id: {
                 type: DataTypes.UUID,
                 defaultValue: DataTypes.UUIDV4,
                 primaryKey: true,
-            },
-            username: {
-                type: DataTypes.STRING(50),
-                allowNull: false,
-                unique: true,
             },
             email: {
                 type: DataTypes.STRING(255),
@@ -82,21 +69,6 @@ export const UserModel = (sequelize: Sequelize) => {
             storage_quota: {
                 type: DataTypes.BIGINT,
                 defaultValue: 107374182400, // 100GB in bytes
-                allowNull: false,
-            },
-            is_premium: {
-                type: DataTypes.BOOLEAN,
-                defaultValue: false,
-                allowNull: false,
-            },
-            created_at: {
-                type: DataTypes.DATE,
-                defaultValue: DataTypes.NOW,
-                allowNull: false,
-            },
-            updated_at: {
-                type: DataTypes.DATE,
-                defaultValue: DataTypes.NOW,
                 allowNull: false,
             },
             last_login: {
@@ -133,9 +105,6 @@ export const UserModel = (sequelize: Sequelize) => {
             indexes: [
                 {
                     fields: ['email'],
-                },
-                {
-                    fields: ['username'],
                 },
                 {
                     fields: ['is_active'],

@@ -1,8 +1,8 @@
-import { DataTypes, Model, Optional, Sequelize } from 'sequelize';
+import { DataTypes, Model, type Optional, Sequelize } from 'sequelize';
 
 // Define the attributes interface
 export interface FileVersionAttributes {
-    version_id: string;
+    id: string;
     file_id: string;
     version_number: number;
     storage_path: string;
@@ -13,29 +13,28 @@ export interface FileVersionAttributes {
 }
 
 // Define the creation attributes
-export interface FileVersionCreationAttributes extends Optional<FileVersionAttributes, 'version_id' | 'created_at'> {}
+export interface FileVersionCreationAttributes extends Optional<FileVersionAttributes, 'id' | 'created_at'> {}
 
 // Define the FileVersion model class
 export class FileVersion extends Model<FileVersionAttributes, FileVersionCreationAttributes> implements FileVersionAttributes {
-    public version_id!: string;
+    public id!: string;
     public file_id!: string;
     public version_number!: number;
     public storage_path!: string;
     public file_size!: number;
     public checksum?: string;
     public created_by_user_id!: string;
-    public created_at!: Date;
 
     // Timestamps
-    public readonly createdAt!: Date;
-    public readonly updatedAt!: Date;
+    public readonly created_at!: Date;
+    public readonly updated_at!: Date;
 }
 
 // Define the model function
 export const FileVersionModel = (sequelize: Sequelize) => {
     FileVersion.init(
         {
-            version_id: {
+            id: {
                 type: DataTypes.UUID,
                 defaultValue: DataTypes.UUIDV4,
                 primaryKey: true,
@@ -45,7 +44,7 @@ export const FileVersionModel = (sequelize: Sequelize) => {
                 allowNull: false,
                 references: {
                     model: 'files',
-                    key: 'file_id',
+                    key: 'id',
                 },
                 onDelete: 'CASCADE',
             },
@@ -70,7 +69,7 @@ export const FileVersionModel = (sequelize: Sequelize) => {
                 allowNull: false,
                 references: {
                     model: 'users',
-                    key: 'user_id',
+                    key: 'id',
                 },
             },
             created_at: {

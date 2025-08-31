@@ -1,9 +1,9 @@
-import { DataTypes, Model, Optional, Sequelize } from 'sequelize';
+import { DataTypes, Model, type Optional, Sequelize } from 'sequelize';
 import { AccessAction } from './enums';
 
 // Define the attributes interface
 export interface AccessLogAttributes {
-    log_id: string;
+    id: string;
     file_id?: string;
     user_id?: string;
     action: AccessAction;
@@ -18,11 +18,11 @@ export interface AccessLogAttributes {
 }
 
 // Define the creation attributes
-export interface AccessLogCreationAttributes extends Optional<AccessLogAttributes, 'log_id' | 'access_time' | 'metadata' | 'success'> {}
+export interface AccessLogCreationAttributes extends Optional<AccessLogAttributes, 'id' | 'access_time' | 'metadata' | 'success'> { }
 
 // Define the AccessLog model class
 export class AccessLog extends Model<AccessLogAttributes, AccessLogCreationAttributes> implements AccessLogAttributes {
-    public log_id!: string;
+    public id!: string;
     public file_id?: string;
     public user_id?: string;
     public action!: AccessAction;
@@ -36,15 +36,15 @@ export class AccessLog extends Model<AccessLogAttributes, AccessLogCreationAttri
     public session_id?: string;
 
     // Timestamps
-    public readonly createdAt!: Date;
-    public readonly updatedAt!: Date;
+    public readonly created_at!: Date;
+    public readonly updated_at!: Date;
 }
 
 // Define the model function
 export const AccessLogModel = (sequelize: Sequelize) => {
     AccessLog.init(
         {
-            log_id: {
+            id: {
                 type: DataTypes.UUID,
                 defaultValue: DataTypes.UUIDV4,
                 primaryKey: true,
@@ -54,7 +54,7 @@ export const AccessLogModel = (sequelize: Sequelize) => {
                 allowNull: true,
                 references: {
                     model: 'files',
-                    key: 'file_id',
+                    key: 'id',
                 },
                 onDelete: 'CASCADE',
             },
@@ -63,7 +63,7 @@ export const AccessLogModel = (sequelize: Sequelize) => {
                 allowNull: true,
                 references: {
                     model: 'users',
-                    key: 'user_id',
+                    key: 'id',
                 },
                 onDelete: 'SET NULL',
             },

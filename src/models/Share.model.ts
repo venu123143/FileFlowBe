@@ -3,7 +3,7 @@ import { SharePermission } from './enums';
 
 // Define the attributes interface
 export interface ShareAttributes {
-    share_id: string;
+    id: string;
     file_id: string;
     shared_by_user_id: string;
     shared_with_user_id: string;
@@ -16,11 +16,11 @@ export interface ShareAttributes {
 }
 
 // Define the creation attributes
-export interface ShareCreationAttributes extends Optional<ShareAttributes, 'share_id' | 'created_at' | 'is_active'> {}
+export interface ShareCreationAttributes extends Optional<ShareAttributes, 'id' | 'created_at' | 'is_active'> {}
 
 // Define the Share model class
 export class Share extends Model<ShareAttributes, ShareCreationAttributes> implements ShareAttributes {
-    public share_id!: string;
+    public id!: string;
     public file_id!: string;
     public shared_by_user_id!: string;
     public shared_with_user_id!: string;
@@ -32,15 +32,15 @@ export class Share extends Model<ShareAttributes, ShareCreationAttributes> imple
     public last_accessed_at?: Date;
 
     // Timestamps
-    public readonly createdAt!: Date;
-    public readonly updatedAt!: Date;
+    public readonly created_at!: Date;
+    public readonly updated_at!: Date;
 }
 
 // Define the model function
 export const ShareModel = (sequelize: Sequelize) => {
     Share.init(
         {
-            share_id: {
+            id: {
                 type: DataTypes.UUID,
                 defaultValue: DataTypes.UUIDV4,
                 primaryKey: true,
@@ -50,7 +50,7 @@ export const ShareModel = (sequelize: Sequelize) => {
                 allowNull: false,
                 references: {
                     model: 'files',
-                    key: 'file_id',
+                    key: 'id',
                 },
                 onDelete: 'CASCADE',
             },
@@ -59,7 +59,7 @@ export const ShareModel = (sequelize: Sequelize) => {
                 allowNull: false,
                 references: {
                     model: 'users',
-                    key: 'user_id',
+                    key: 'id',
                 },
                 onDelete: 'CASCADE',
             },
@@ -68,7 +68,7 @@ export const ShareModel = (sequelize: Sequelize) => {
                 allowNull: false,
                 references: {
                     model: 'users',
-                    key: 'user_id',
+                    key: 'id',
                 },
                 onDelete: 'CASCADE',
             },

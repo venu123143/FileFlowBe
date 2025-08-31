@@ -3,7 +3,7 @@ import { NotificationType } from './enums';
 
 // Define the attributes interface
 export interface NotificationAttributes {
-    notification_id: string;
+    id: string;
     user_id: string;
     type: NotificationType;
     title: string;
@@ -16,11 +16,11 @@ export interface NotificationAttributes {
 }
 
 // Define the creation attributes
-export interface NotificationCreationAttributes extends Optional<NotificationAttributes, 'notification_id' | 'created_at' | 'is_read' | 'data'> { }
+export interface NotificationCreationAttributes extends Optional<NotificationAttributes, 'id' | 'created_at' | 'is_read' | 'data'> { }
 
 // Define the Notification model class
 export class Notification extends Model<NotificationAttributes, NotificationCreationAttributes> implements NotificationAttributes {
-    public notification_id!: string;
+    public id!: string;
     public user_id!: string;
     public type!: NotificationType;
     public title!: string;
@@ -32,15 +32,15 @@ export class Notification extends Model<NotificationAttributes, NotificationCrea
     public data!: Record<string, any>;
 
     // Timestamps
-    public readonly createdAt!: Date;
-    public readonly updatedAt!: Date;
+    public readonly created_at!: Date;
+    public readonly updated_at!: Date;
 }
 
 // Define the model function
 export const NotificationModel = (sequelize: Sequelize) => {
     Notification.init(
         {
-            notification_id: {
+            id: {
                 type: DataTypes.UUID,
                 defaultValue: DataTypes.UUIDV4,
                 primaryKey: true,
@@ -50,7 +50,7 @@ export const NotificationModel = (sequelize: Sequelize) => {
                 allowNull: false,
                 references: {
                     model: 'users',
-                    key: 'user_id',
+                    key: 'id',
                 },
                 onDelete: 'CASCADE',
             },
@@ -71,7 +71,7 @@ export const NotificationModel = (sequelize: Sequelize) => {
                 allowNull: true,
                 references: {
                     model: 'files',
-                    key: 'file_id',
+                    key: 'id',
                 },
                 onDelete: 'CASCADE',
             },
@@ -80,7 +80,7 @@ export const NotificationModel = (sequelize: Sequelize) => {
                 allowNull: true,
                 references: {
                     model: 'users',
-                    key: 'user_id',
+                    key: 'id',
                 },
                 onDelete: 'CASCADE',
             },
