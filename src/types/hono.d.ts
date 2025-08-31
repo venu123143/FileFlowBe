@@ -12,6 +12,7 @@ declare module 'hono' {
     interface ContextVariableMap {
         session: Session;
         user: User | null;
-        validated: unknown; // will be inferred and narrowed by the schema in runtime
+        validated: T; // will be inferred and narrowed by the schema in runtime
+        user_id: string;
     }
 }

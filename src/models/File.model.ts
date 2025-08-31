@@ -22,7 +22,7 @@ export interface IFileInfo {
 
 // Define the attributes interface
 export interface FileAttributes {
-    id: string;
+    id?: string;
     owner_id: string;
     parent_id?: string;
     name: string;
@@ -31,7 +31,7 @@ export interface FileAttributes {
     file_info?: IFileInfo | null;
     description?: string;
     tags: string[];
-    metadata: Record<string, any>;
+    metadata: Record<string, any> | null;
     last_accessed_at?: Date;
 }
 
@@ -49,7 +49,7 @@ export class File extends Model<FileAttributes, FileCreationAttributes> implemen
     declare file_info?: IFileInfo | null;
     declare description?: string;
     declare tags: string[];
-    declare metadata: Record<string, any>;
+    declare metadata: Record<string, any> | null;
     declare last_accessed_at?: Date;
 
     // Timestamps
@@ -115,8 +115,8 @@ export const FileModel = (sequelize: Sequelize) => {
             },
             metadata: {
                 type: DataTypes.JSONB,
-                defaultValue: {},
-                allowNull: false,
+                defaultValue: null,
+                allowNull: true,
             },
             last_accessed_at: {
                 type: DataTypes.DATE,
@@ -140,6 +140,10 @@ export const FileModel = (sequelize: Sequelize) => {
                 { fields: ['created_at'] },
                 { fields: ['tags'], using: 'gin' },
                 { fields: ['metadata'], using: 'gin' },
+                {
+                    unique: true,
+                    fields: ['parent_id', 'name', 'owner_id', 'is_folder'], // composite unique
+                },
             ],
         }
     );
