@@ -26,6 +26,7 @@
     "typescript": "^5.9.2"
   },
   "dependencies": {
+    "bcryptjs": "^3.0.2",
     "hono": "^4.9.4",
     "hono-sessions": "^0.8.0",
     "ioredis": "^5.7.0",

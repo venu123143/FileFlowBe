@@ -17,17 +17,17 @@ export interface FileVersionCreationAttributes extends Optional<FileVersionAttri
 
 // Define the FileVersion model class
 export class FileVersion extends Model<FileVersionAttributes, FileVersionCreationAttributes> implements FileVersionAttributes {
-    public id!: string;
-    public file_id!: string;
-    public version_number!: number;
-    public storage_path!: string;
-    public file_size!: number;
-    public checksum?: string;
-    public created_by_user_id!: string;
+    declare id: string;
+    declare file_id: string;
+    declare version_number: number;
+    declare storage_path: string;
+    declare file_size: number;
+    declare checksum?: string;
+    declare created_by_user_id: string;
 
     // Timestamps
-    public readonly created_at!: Date;
-    public readonly updated_at!: Date;
+    declare readonly created_at: Date;
+    declare readonly updated_at: Date;
 }
 
 // Define the model function

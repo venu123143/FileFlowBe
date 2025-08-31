@@ -3,10 +3,8 @@ import * as crypto from "crypto";
 import config from "@/config/config";
 
 export interface TokenAttributes {
-    id?: number;
-    phone_number?: string | null;
-    account_status: string;
-    registration_source?: string;
+    id: string;
+    email: string;
 }
 
 async function generateEncryptedPayload(payload: TokenAttributes): Promise<string> {

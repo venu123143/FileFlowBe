@@ -34,35 +34,35 @@ export interface FileCreationAttributes extends Optional<FileAttributes, 'id' | 
 
 // Define the File model class
 export class File extends Model<FileAttributes, FileCreationAttributes> implements FileAttributes {
-    public id!: string;
-    public owner_id!: string;
-    public parent_id?: string;
-    public name!: string;
-    public is_folder!: boolean;
-    public file_type?: string;
-    public file_size!: number;
-    public storage_path?: string;
-    public thumbnail_path?: string;
-    public duration?: number;
-    public dimensions?: Record<string, any>;
-    public is_public!: boolean;
-    public public_link_token?: string;
-    public public_link_password_hash?: string;
-    public public_link_expires_at?: Date;
-    public pin_hash?: string;
-    public is_deleted!: boolean;
-    public deleted_at?: Date;
-    public deleted_by_user_id?: string;
-    public auto_delete_at?: Date;
-    public version!: number;
-    public description?: string;
-    public tags!: string[];
-    public metadata!: Record<string, any>;
-    public last_accessed_at?: Date;
+    declare id: string;
+    declare owner_id: string;
+    declare parent_id?: string;
+    declare name: string;
+    declare is_folder: boolean;
+    declare file_type?: string;
+    declare file_size: number;
+    declare storage_path?: string;
+    declare thumbnail_path?: string;
+    declare duration?: number;
+    declare dimensions?: Record<string, any>;
+    declare is_public: boolean;
+    declare public_link_token?: string;
+    declare public_link_password_hash?: string;
+    declare public_link_expires_at?: Date;
+    declare pin_hash?: string;
+    declare is_deleted: boolean;
+    declare deleted_at?: Date;
+    declare deleted_by_user_id?: string;
+    declare auto_delete_at?: Date;
+    declare version: number;
+    declare description?: string;
+    declare tags: string[];
+    declare metadata: Record<string, any>;
+    declare last_accessed_at?: Date;
 
     // Timestamps
-    public readonly created_at!: Date;
-    public readonly updated_at!: Date;
+    declare readonly created_at: Date;
+    declare readonly updated_at: Date;
 }
 
 // Define the model function

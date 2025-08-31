@@ -1,4 +1,4 @@
-import { DataTypes, Model, Optional, Sequelize } from 'sequelize';
+import { DataTypes, Model, type Optional, Sequelize } from 'sequelize';
 import { SharePermission } from './enums';
 
 // Define the attributes interface
@@ -16,24 +16,23 @@ export interface ShareAttributes {
 }
 
 // Define the creation attributes
-export interface ShareCreationAttributes extends Optional<ShareAttributes, 'id' | 'created_at' | 'is_active'> {}
+export interface ShareCreationAttributes extends Optional<ShareAttributes, 'id' | 'created_at' | 'is_active'> { }
 
 // Define the Share model class
 export class Share extends Model<ShareAttributes, ShareCreationAttributes> implements ShareAttributes {
-    public id!: string;
-    public file_id!: string;
-    public shared_by_user_id!: string;
-    public shared_with_user_id!: string;
-    public permission_level!: SharePermission;
-    public message?: string;
-    public created_at!: Date;
-    public expires_at?: Date;
-    public is_active!: boolean;
-    public last_accessed_at?: Date;
+    declare id: string;
+    declare file_id: string;
+    declare shared_by_user_id: string;
+    declare shared_with_user_id: string;
+    declare permission_level: SharePermission;
+    declare message?: string;
+    declare expires_at?: Date;
+    declare is_active: boolean;
+    declare last_accessed_at?: Date;
 
     // Timestamps
-    public readonly created_at!: Date;
-    public readonly updated_at!: Date;
+    declare readonly created_at: Date;
+    declare readonly updated_at: Date;
 }
 
 // Define the model function

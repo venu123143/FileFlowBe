@@ -20,20 +20,19 @@ export interface NotificationCreationAttributes extends Optional<NotificationAtt
 
 // Define the Notification model class
 export class Notification extends Model<NotificationAttributes, NotificationCreationAttributes> implements NotificationAttributes {
-    public id!: string;
-    public user_id!: string;
-    public type!: NotificationType;
-    public title!: string;
-    public message!: string;
-    public file_id?: string;
-    public related_user_id?: string;
-    public is_read!: boolean;
-    public created_at!: Date;
-    public data!: Record<string, any>;
+    declare id: string;
+    declare user_id: string;
+    declare type: NotificationType;
+    declare title: string;
+    declare message: string;
+    declare file_id?: string;
+    declare related_user_id?: string;
+    declare is_read: boolean;
+    declare data: Record<string, any>;
 
     // Timestamps
-    public readonly created_at!: Date;
-    public readonly updated_at!: Date;
+    declare readonly created_at: Date;
+    declare readonly updated_at: Date;
 }
 
 // Define the model function

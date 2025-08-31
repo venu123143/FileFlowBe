@@ -22,22 +22,22 @@ export interface AccessLogCreationAttributes extends Optional<AccessLogAttribute
 
 // Define the AccessLog model class
 export class AccessLog extends Model<AccessLogAttributes, AccessLogCreationAttributes> implements AccessLogAttributes {
-    public id!: string;
-    public file_id?: string;
-    public user_id?: string;
-    public action!: AccessAction;
-    public ip_address?: string;
-    public user_agent?: string;
-    public access_time!: Date;
-    public metadata!: Record<string, any>;
-    public success!: boolean;
-    public error_message?: string;
-    public referrer?: string;
-    public session_id?: string;
+    declare id: string;
+    declare file_id?: string;
+    declare user_id?: string;
+    declare action: AccessAction;
+    declare ip_address?: string;
+    declare user_agent?: string;
+    declare access_time: Date;
+    declare metadata: Record<string, any>;
+    declare success: boolean;
+    declare error_message?: string;
+    declare referrer?: string;
+    declare session_id?: string;
 
     // Timestamps
-    public readonly created_at!: Date;
-    public readonly updated_at!: Date;
+    declare readonly created_at: Date;
+    declare readonly updated_at: Date;
 }
 
 // Define the model function

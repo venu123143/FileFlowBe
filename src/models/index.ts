@@ -9,6 +9,8 @@ export * from './StorageAnalytics.model';
 export * from './AccessLog.model';
 export * from './Favorite.model';
 export * from './Notification.model';
+export * from './UserSession.model';
+
 // Import all model functions
 import { UserModel } from './User.model';
 import { FileModel } from './File.model';
@@ -18,6 +20,7 @@ import { StorageAnalyticsModel } from './StorageAnalytics.model';
 import { AccessLogModel } from './AccessLog.model';
 import { FavoriteModel } from './Favorite.model';
 import { NotificationModel } from './Notification.model';
+import { UserSessionModel } from './UserSession.model';
 
 // Function to initialize all models with associations
 export const initializeModels = (sequelize: Sequelize) => {
@@ -30,7 +33,7 @@ export const initializeModels = (sequelize: Sequelize) => {
     const AccessLog = AccessLogModel(sequelize);
     const Favorite = FavoriteModel(sequelize);
     const Notification = NotificationModel(sequelize);
-
+    const UserSession = UserSessionModel(sequelize);
     // Define associations
     // User associations
     User.hasMany(File, { foreignKey: 'owner_id', as: 'ownedFiles' });
@@ -43,7 +46,7 @@ export const initializeModels = (sequelize: Sequelize) => {
     User.hasMany(Favorite, { foreignKey: 'user_id', as: 'favorites' });
     User.hasMany(Notification, { foreignKey: 'user_id', as: 'notifications' });
     User.hasMany(Notification, { foreignKey: 'related_user_id', as: 'relatedNotifications' });
-
+    User.hasMany(UserSession, { foreignKey: 'user_id', as: 'sessions' });
     // File associations
     File.belongsTo(User, { foreignKey: 'owner_id', as: 'owner' });
     File.belongsTo(User, { foreignKey: 'deleted_by_user_id', as: 'deletedBy' });
@@ -89,5 +92,6 @@ export const initializeModels = (sequelize: Sequelize) => {
         AccessLog,
         Favorite,
         Notification,
+        UserSession,
     };
 };

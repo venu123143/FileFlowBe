@@ -1,7 +1,7 @@
 import { DataTypes, Model, type Optional, Sequelize } from 'sequelize';
 
 // Define the attributes interface
-export interface UserAttributes {
+export interface IUserAttributes {
     id: string;
     email: string;
     password_hash: string;
@@ -16,25 +16,25 @@ export interface UserAttributes {
 }
 
 // Define the creation attributes (optional fields for creation)
-export interface UserCreationAttributes extends Optional<UserAttributes, 'id' | 'storage_quota' | 'is_active' | 'email_verified' | 'two_factor_enabled' | 'preferences'> { }
+export interface UserCreationAttributes extends Optional<IUserAttributes, 'id' | 'storage_quota' | 'is_active' | 'email_verified' | 'two_factor_enabled' | 'preferences'> { }
 
 // Define the User model class
-export class User extends Model<UserAttributes, UserCreationAttributes> implements UserAttributes {
-    public id!: string;
-    public email!: string;
-    public password_hash!: string;
-    public display_name?: string;
-    public avatar_url?: string;
-    public storage_quota!: number;
-    public last_login?: Date;
-    public is_active!: boolean;
-    public email_verified!: boolean;
-    public two_factor_enabled!: boolean;
-    public preferences!: Record<string, any>;
+export class User extends Model<IUserAttributes, UserCreationAttributes> implements IUserAttributes {
+    declare id: string;
+    declare email: string;
+    declare password_hash: string;
+    declare display_name?: string;
+    declare avatar_url?: string;
+    declare storage_quota: number;
+    declare last_login?: Date;
+    declare is_active: boolean;
+    declare email_verified: boolean;
+    declare two_factor_enabled: boolean;
+    declare preferences: Record<string, any>;
 
     // Timestamps
-    public readonly created_at!: Date;
-    public readonly updated_at!: Date;
+    declare readonly created_at: Date;
+    declare readonly updated_at: Date;
 }
 
 // Define the model function

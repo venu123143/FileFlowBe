@@ -13,13 +13,13 @@ export interface FavoriteCreationAttributes extends Optional<FavoriteAttributes,
 
 // Define the Favorite model class
 export class Favorite extends Model<FavoriteAttributes, FavoriteCreationAttributes> implements FavoriteAttributes {
-    public id!: string;
-    public user_id!: string;
-    public file_id!: string;
+    declare id: string;
+    declare user_id: string;
+    declare file_id: string;
 
     // Timestamps
-    public readonly created_at!: Date;
-    public readonly updated_at!: Date;
+    declare readonly created_at: Date;
+    declare readonly updated_at: Date;
 }
 
 // Define the model function

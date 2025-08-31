@@ -30,31 +30,31 @@ export interface StorageAnalyticsCreationAttributes extends Optional<StorageAnal
 
 // Define the StorageAnalytics model class
 export class StorageAnalytics extends Model<StorageAnalyticsAttributes, StorageAnalyticsCreationAttributes> implements StorageAnalyticsAttributes {
-    public id!: string;
-    public user_id!: string;
-    public date!: Date;
-    public total_files!: number;
-    public total_folders!: number;
-    public total_size!: number;
-    public images_count!: number;
-    public images_size!: number;
-    public videos_count!: number;
-    public videos_size!: number;
-    public audio_count!: number;
-    public audio_size!: number;
-    public documents_count!: number;
-    public documents_size!: number;
-    public other_count!: number;
-    public other_size!: number;
-    public uploads_today!: number;
-    public downloads_today!: number;
-    public shares_created_today!: number;
-    public public_links_created_today!: number;
-    public created_at!: Date;
+    declare id: string;
+    declare user_id: string;
+    declare date: Date;
+    declare total_files: number;
+    declare total_folders: number;
+    declare total_size: number;
+    declare images_count: number;
+    declare images_size: number;
+    declare videos_count: number;
+    declare videos_size: number;
+    declare audio_count: number;
+    declare audio_size: number;
+    declare documents_count: number;
+    declare documents_size: number;
+    declare other_count: number;
+    declare other_size: number;
+    declare uploads_today: number;
+    declare downloads_today: number;
+    declare shares_created_today: number;
+    declare public_links_created_today: number;
+    declare created_at: Date;
 
     // Timestamps
-    public readonly created_at!: Date;
-    public readonly updated_at!: Date;
+    declare readonly created_at: Date;
+    declare readonly updated_at: Date;
 }
 
 // Define the model function
