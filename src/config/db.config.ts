@@ -1,4 +1,7 @@
 // src/config/dbConfig.ts
+import { config } from 'dotenv';
+
+config();
 
 interface IConfig {
     username: string;
@@ -18,30 +21,30 @@ interface DBConfig {
 
 const dbConfig: DBConfig = {
     development: {
-        username: Bun.env.DEV_DB_USERNAME!,
-        password: Bun.env.DEV_DB_PASSWORD!,
-        database: Bun.env.DEV_DB_DATABASE!,
-        host: Bun.env.DEV_DB_HOST!,
+        username: process.env.DEV_DB_USERNAME!,
+        password: process.env.DEV_DB_PASSWORD!,
+        database: process.env.DEV_DB_DATABASE!,
+        host: process.env.DEV_DB_HOST!,
         dialect: 'postgres',
-        port: parseInt(Bun.env.DEV_DB_PORT || '5432', 10),
+        port: parseInt(process.env.DEV_DB_PORT || '5432', 10),
         timezone: '+00:00',
     },
     test: {
-        username: Bun.env.TEST_DB_USERNAME!,
-        password: Bun.env.TEST_DB_PASSWORD!,
-        database: Bun.env.TEST_DB_DATABASE!,
-        host: Bun.env.TEST_DB_HOST!,
+        username: process.env.TEST_DB_USERNAME!,
+        password: process.env.TEST_DB_PASSWORD!,
+        database: process.env.TEST_DB_DATABASE!,
+        host: process.env.TEST_DB_HOST!,
         dialect: 'postgres',
-        port: parseInt(Bun.env.TEST_DB_PORT || '5432', 10),
+        port: parseInt(process.env.TEST_DB_PORT || '5432', 10),
         timezone: '+00:00',
     },
     production: {
-        username: Bun.env.PROD_DB_USERNAME!,
-        password: Bun.env.PROD_DB_PASSWORD!,
-        database: Bun.env.PROD_DB_DATABASE!,
-        host: Bun.env.PROD_DB_HOST!,
+        username: process.env.PROD_DB_USERNAME!,
+        password: process.env.PROD_DB_PASSWORD!,
+        database: process.env.PROD_DB_DATABASE!,
+        host: process.env.PROD_DB_HOST!,
         dialect: 'postgres',
-        port: parseInt(Bun.env.PROD_DB_PORT || '5432', 10),
+        port: parseInt(process.env.PROD_DB_PORT || '5432', 10),
         timezone: '+00:00',
     },
 };
