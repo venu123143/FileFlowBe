@@ -5,7 +5,7 @@ import { logger } from "hono/logger";
 import { requestId } from "hono/request-id";
 import { csrf } from "hono/csrf";
 import { secureHeaders } from "hono/secure-headers";
-import { options as corsOptions } from "@/utils/cors-options";
+import { corsOptions, csrfMiddleware } from "@/utils/cors-options";
 import session from "@/core/session";
 import { MainRouter } from "@/global/routes";
 import "@/config/database";
@@ -29,7 +29,7 @@ export class App {
         this.app.use("*", cors(corsOptions));
         this.app.use("*", secureHeaders());
         this.app.use("*", session);
-        this.app.use("*", csrf());
+        this.app.use("*", csrfMiddleware);
         this.app.use("*", requestId());
         this.app.use("*", winston.createAuditMiddleware(winston.loggerInstance));
 
@@ -42,6 +42,7 @@ export class App {
 
     private registerErrorHandler() {
         this.app.onError((err, c) => {
+            console.log(err);
             console.error("❗ Unhandled error:", err.message);
             return c.text("Internal Server Error", 500);
         });
