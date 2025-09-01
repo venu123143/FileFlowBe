@@ -18,7 +18,9 @@ export class FileRouter {
         this.router.use(AuthMiddleware.authMiddleware);
 
         this.router.post('/folder', validateBody(fileDtoValidation.createFolderValidation), FileController.createFolder);
-        // this.router.put('/folder/:id', FileController.updateFolder);
+        this.router.patch('/folder/:id/rename', validateBody(fileDtoValidation.renameFolderValidation), FileController.renameFolder);
+        this.router.patch('/folder/:id/move', validateBody(fileDtoValidation.moveFileValidation), FileController.moveFileOrFile);
+        this.router.post('/file', validateBody(fileDtoValidation.createFileValidation), FileController.createFile);
     }
 
     public getRouter() {

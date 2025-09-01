@@ -8,15 +8,11 @@ export enum AccessLevel {
 }
 
 export interface IFileInfo {
-    file_type?: string;        // e.g. "image/png", "video/mp4"
-    file_size?: number;        // in bytes
-    storage_path?: string;     // internal storage path
+    file_type: string;        // e.g. "image/png", "video/mp4"
+    file_size: number;        // in bytes
+    storage_path: string;     // internal storage path
     thumbnail_path?: string;   // path to generated thumbnail (if image/video)
-    duration?: number;         // media duration in seconds (for audio/video)
-    dimensions?: {
-        width: number;
-        height: number;
-    };                         // image/video dimensions
+    duration?: number;         // media duration in seconds (for audio/video)                        // image/video dimensions
 }
 
 
