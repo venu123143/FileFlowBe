@@ -139,9 +139,22 @@ const createFile = async (c: Context) => {
     }
 }
 
+const getFileSystemTree = async (c: Context) => {
+    try {
+        const user = c.get('user') as IUserAttributes;
+        const fileSystem = await fileRepository.getFileSystemTree(user.id);
+        return res.SuccessResponse(c, 200, { message: "File system tree retrieved successfully", data: fileSystem });
+
+    } catch (error) {
+        console.log(error);
+        return res.FailureResponse(c, 500, { message: "Internal server error" });
+    }
+}
+
 export default {
     createFolder,
     renameFolder,
     moveFileOrFile,
-    createFile
+    createFile,
+    getFileSystemTree
 };

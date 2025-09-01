@@ -21,6 +21,7 @@ export class FileRouter {
         this.router.patch('/folder/:id/rename', validateBody(fileDtoValidation.renameFolderValidation), FileController.renameFolder);
         this.router.patch('/folder/:id/move', validateBody(fileDtoValidation.moveFileValidation), FileController.moveFileOrFile);
         this.router.post('/file', validateBody(fileDtoValidation.createFileValidation), FileController.createFile);
+        this.router.get('/file-system-tree', FileController.getFileSystemTree);
     }
 
     public getRouter() {

@@ -1,0 +1,10 @@
+const path = require('path');
+require('ts-node/register');
+// This file is used to configure Sequelize CLI to work with TypeScript
+// It allows us to specify the paths for the configuration, models, seeders, and migrations
+module.exports = {
+  'config': path.resolve('dist/config', 'db.config.js'),
+  'models-path': path.resolve('src', 'services'),
+  'seeders-path': path.resolve('src/database', 'seeders'),
+  'migrations-path': path.resolve('src/database', 'migrations')
+};
