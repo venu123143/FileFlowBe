@@ -23,7 +23,7 @@ export async function up(queryInterface: QueryInterface) {
                 'created_at', f.created_at,
                 'updated_at', f.updated_at,
                 'children', CASE 
-                    WHEN f.is_folder = true THEN build_children_recursive(f.id,  filter_access_level)
+                    WHEN f.is_folder = true THEN build_children_recursive(f.id, filter_access_level)
                     ELSE '[]'::json
                 END
             )
@@ -32,7 +32,7 @@ export async function up(queryInterface: QueryInterface) {
         FROM files f
         WHERE f.parent_id = parent_uuid 
           AND f.deleted_at IS NULL
-          AND (filter_access_level IS NULL OR f.access_level = filter_access_level);
+          AND (filter_access_level IS NULL OR f.access_level::TEXT = filter_access_level);
         
         RETURN COALESCE(result, '[]'::json);
     END;
@@ -41,5 +41,5 @@ export async function up(queryInterface: QueryInterface) {
 }
 
 export async function down(queryInterface: QueryInterface) {
-  await queryInterface.sequelize.query('DROP FUNCTION IF EXISTS build_children_recursive(UUID);');
+  await queryInterface.sequelize.query('DROP FUNCTION IF EXISTS build_children_recursive(UUID, TEXT);');
 }

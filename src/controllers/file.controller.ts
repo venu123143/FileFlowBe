@@ -1,6 +1,6 @@
 import { type Context } from "hono";
 import res from "@/utils/response";
-import { type FileAttributes } from "@/models/File.model";
+import { AccessLevel, type FileAttributes } from "@/models/File.model";
 import type { InferSchemaType } from "@/utils/validation";
 import fileDtoValidation from "@/validation/file.validation";
 import fileRepository from "@/repository/file.repository";
@@ -20,7 +20,7 @@ const createFolder = async (c: Context) => {
             owner_id: user.id,
             name: value.name,
             parent_id: value.parent_id ?? null,
-            access_level: value.access_level,
+            access_level: value.access_level ?? AccessLevel.PROTECTED,
             description: value.description,
             tags: value.tags,
             is_folder: true,
@@ -136,7 +136,8 @@ const createFile = async (c: Context) => {
 const getFileSystemTree = async (c: Context) => {
     try {
         const user = c.get('user') as IUserAttributes;
-        const fileSystem = await fileRepository.getFileSystemTree(user.id);
+        const accessLevel = c.req.query('accessLevel');
+        const fileSystem = await fileRepository.getFileSystemTree(user.id, accessLevel as AccessLevel | null);
         return res.SuccessResponse(c, 200, { message: "File system tree retrieved successfully", data: fileSystem });
 
     } catch (error) {

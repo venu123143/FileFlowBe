@@ -93,7 +93,7 @@ export const FileModel = (sequelize: Sequelize) => {
             },
             access_level: {
                 type: DataTypes.ENUM(...Object.values(AccessLevel)),
-                defaultValue: AccessLevel.PRIVATE,
+                defaultValue: AccessLevel.PROTECTED,
                 allowNull: false,
             },
             file_info: {

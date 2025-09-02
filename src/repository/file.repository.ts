@@ -25,8 +25,9 @@ const createFile = async (file: FileAttributes, transaction: Transaction) => {
 }
 
 const getFileSystemTree = async (userId: string, accessLevel: AccessLevel | null = null): Promise<FileSystemNode[]> => {
-  // here build_children_recursive is the function that we created in the migration file.
-  // it exists in the database.so we can use it in the query. this function is used to get the children of the folder.
+  // Cast accessLevel to string to match the TEXT parameter in the function
+  const accessLevelParam = accessLevel ? accessLevel.toString() : null;
+
   const query = `
       SELECT 
         JSON_AGG(
@@ -45,7 +46,7 @@ const getFileSystemTree = async (userId: string, accessLevel: AccessLevel | null
             'created_at', f.created_at,
             'updated_at', f.updated_at,
             'children', CASE 
-              WHEN f.is_folder = true THEN build_children_recursive(f.id, :accessLevel)
+              WHEN f.is_folder = true THEN build_children_recursive(f.id, $2)
               ELSE '[]'::json
             END
           )
@@ -53,12 +54,17 @@ const getFileSystemTree = async (userId: string, accessLevel: AccessLevel | null
         ) as file_system
       FROM files f
       WHERE f.parent_id IS NULL 
-        AND f.owner_id = :userId
+        AND f.owner_id = $1
         AND f.deleted_at IS NULL
-        ${accessLevel ? "AND f.access_level = :accessLevel" : ""}
+        ${accessLevel ? "AND f.access_level::TEXT = $2" : ""}
     `;
-  const result = await db.connection.query(query, { type: QueryTypes.RAW, replacements: { userId, accessLevel } }) as any;
-  return result[0][0].file_system ? result[0][0].file_system as FileSystemNode[] : [];
+
+  const result = await db.connection.query(query, {
+    type: QueryTypes.RAW,
+    bind: [userId, accessLevelParam]
+  }) as any;
+
+  return result[0][0]?.file_system ? result[0][0].file_system as FileSystemNode[] : [];
 };
 
 const getTrash = async (userId: string): Promise<FileSystemNode[]> => {
