@@ -11,7 +11,7 @@ import { MainRouter } from "@/global/routes";
 import "@/config/database";
 import RedisConnectionManager from "@/config/redis.config";
 import winston from "@/core/logger"
-
+import "@/controllers/cron.controller";
 
 export class App {
     private readonly app: Hono;
