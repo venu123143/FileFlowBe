@@ -4,7 +4,7 @@ export async function up(queryInterface: QueryInterface) {
   // Create the shared children recursive function
   await queryInterface.sequelize.query(`
     CREATE OR REPLACE FUNCTION build_shared_children_recursive(parent_uuid UUID, share_id_param UUID)
-    RETURNS JSON AS $
+    RETURNS JSON AS $$
     DECLARE
         result JSON;
         share_info RECORD;
@@ -57,7 +57,7 @@ export async function up(queryInterface: QueryInterface) {
         
         RETURN COALESCE(result, '[]'::json);
     END;
-    $ LANGUAGE plpgsql;
+    $$ LANGUAGE plpgsql;
   `);
 
   // -- Create an index to improve performance for share lookups
