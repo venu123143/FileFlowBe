@@ -7,6 +7,7 @@ import fileRepository from "@/repository/file.repository";
 import type { IUserAttributes } from "@/models/User.model";
 import { ForeignKeyConstraintError, UniqueConstraintError, type Transaction } from "sequelize";
 import db from "@/config/database";
+import type { ShareAttributes } from "@/models/Share.model";
 
 
 const createFolder = async (c: Context) => {
@@ -144,10 +145,111 @@ const getFileSystemTree = async (c: Context) => {
     }
 }
 
+const getTrash = async (c: Context) => {
+    try {
+        const user = c.get('user') as IUserAttributes;
+        const trash = await fileRepository.getTrash(user.id);
+        return res.SuccessResponse(c, 200, { message: "Trash retrieved successfully", data: trash });
+    } catch (error) {
+        console.log(error);
+        return res.FailureResponse(c, 500, { message: "Internal server error" });
+    }
+}
+
+const restoreFileOrFolder = async (c: Context) => {
+    try {
+        const user = c.get('user') as IUserAttributes;
+        const fileId = c.req.param('id');
+        const restoredFile = await fileRepository.restoreFileOrFolder(fileId, user.id);
+
+        return res.SuccessResponse(c, 200, { message: "File/folder restored successfully", data: restoredFile });
+    } catch (error) {
+        console.log(error);
+        return res.FailureResponse(c, 500, { message: "Internal server error" });
+    }
+}
+
+const deleteFileOrFolder = async (c: Context) => {
+    try {
+        const user = c.get('user') as IUserAttributes;
+        const fileId = c.req.param('id');
+        const deletedFile = await fileRepository.deleteFileOrFolder(fileId, user.id);
+
+        return res.SuccessResponse(c, 200, { message: "File/folder deleted successfully", data: { deletedFile } });
+    } catch (error) {
+        console.log(error);
+        return res.FailureResponse(c, 500, { message: "Internal server error" });
+    }
+}
+
+const shareFileOrFolder = async (c: Context) => {
+    try {
+        type ShareFileBody = InferSchemaType<typeof fileDtoValidation.shareFileValidation>;
+        const value = c.get<ShareFileBody>('validated');
+        const user = c.get('user') as IUserAttributes;
+        const fileId = c.req.param('id');
+        const share: ShareAttributes = {
+            file_id: fileId,
+            shared_by_user_id: user.id,
+            shared_with_user_id: value.shared_with_user_id,
+            permission_level: value.permission_level,
+            message: value.message,
+            expires_at: value.expires_at
+        };
+        const sharedFile = await fileRepository.shareFileOrFolder(share);
+
+        return res.SuccessResponse(c, 200, { message: "File/folder shared successfully", data: { sharedFile } });
+    } catch (error) {
+        console.log(error);
+        return res.FailureResponse(c, 500, { message: "Internal server error" });
+    }
+}
+
+const getAllSharedFiles = async (c: Context) => {
+    try {
+        const user = c.get('user') as IUserAttributes;
+        const sharedFiles = await fileRepository.getAllSharedFiles(user.id);
+        return res.SuccessResponse(c, 200, { message: "All shared files retrieved successfully", data: sharedFiles });
+    } catch (error) {
+        console.log(error);
+        return res.FailureResponse(c, 500, { message: "Internal server error" });
+    }
+}
+
+
+const getAllSharedFilesByMe = async (c: Context) => {
+    try {
+        const user = c.get('user') as IUserAttributes;
+        const sharedFiles = await fileRepository.getAllSharedFilesByMe(user.id);
+        return res.SuccessResponse(c, 200, { message: "All shared files by me retrieved successfully", data: sharedFiles });
+    } catch (error) {
+        console.log(error);
+        return res.FailureResponse(c, 500, { message: "Internal server error" });
+    }
+}
+
+const getAllSharedFilesWithMe = async (c: Context) => {
+    try {
+        const user = c.get('user') as IUserAttributes;
+        const sharedFiles = await fileRepository.getAllSharedFilesWithMe(user.id);
+        return res.SuccessResponse(c, 200, { message: "All shared files with me retrieved successfully", data: sharedFiles });
+    } catch (error) {
+        console.log(error);
+        return res.FailureResponse(c, 500, { message: "Internal server error" });
+    }
+}
+
 export default {
     createFolder,
     renameFolder,
     moveFileOrFolder,
     createFile,
-    getFileSystemTree
+    getFileSystemTree,
+    getTrash,
+    restoreFileOrFolder,
+    deleteFileOrFolder,
+    shareFileOrFolder,
+    getAllSharedFiles,
+    getAllSharedFilesByMe,
+    getAllSharedFilesWithMe
 };

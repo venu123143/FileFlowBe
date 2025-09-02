@@ -1,6 +1,8 @@
 
 import Joi from 'joi';
 import { AccessLevel } from '@/models/File.model';
+import { SharePermission } from '@/models/Share.model';
+
 const createFolderValidation = Joi.object({
     name: Joi.string().trim()
         .min(1)
@@ -183,6 +185,30 @@ const createFileValidation = Joi.object({
     }),
 });
 
+const shareFileValidation = Joi.object({
+    shared_with_user_id: Joi.string()
+        .uuid()
+        .required()
+        .messages({
+            "string.guid": "Shared with user ID must be a valid UUID."
+        }),
+    permission_level: Joi.string()
+        .valid(...Object.values(SharePermission))
+        .required()
+        .messages({
+            "any.only": "Permission level must be one of 'view', 'edit', or 'admin'."
+        }),
+    message: Joi.string()
+        .optional()
+        .messages({
+            "string.base": "Message must be a string."
+        }),
+    expires_at: Joi.date()
+        .optional()
+        .messages({
+            "date.base": "Expires at must be a date."
+        })
+});
 
 export default {
     createFolderValidation,
@@ -190,4 +216,5 @@ export default {
     renameFolderValidation,
     moveFileValidation,
     createFileValidation,
+    shareFileValidation,
 };

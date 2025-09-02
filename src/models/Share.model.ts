@@ -8,20 +8,18 @@ export enum SharePermission {
 
 // Define the attributes interface
 export interface ShareAttributes {
-    id: string;
+    id?: string;
     file_id: string;
     shared_by_user_id: string;
     shared_with_user_id: string;
     permission_level: SharePermission;
-    message?: string;
-    created_at: Date;
-    expires_at?: Date;
-    is_active: boolean;
+    message?: string | null;
+    expires_at?: Date | null;
     last_accessed_at?: Date;
 }
 
 // Define the creation attributes
-export interface ShareCreationAttributes extends Optional<ShareAttributes, 'id' | 'created_at' | 'is_active'> { }
+export interface ShareCreationAttributes extends Optional<ShareAttributes, 'id'> { }
 
 // Define the Share model class
 export class Share extends Model<ShareAttributes, ShareCreationAttributes> implements ShareAttributes {
@@ -32,7 +30,6 @@ export class Share extends Model<ShareAttributes, ShareCreationAttributes> imple
     declare permission_level: SharePermission;
     declare message?: string;
     declare expires_at?: Date;
-    declare is_active: boolean;
     declare last_accessed_at?: Date;
 
     // Timestamps
@@ -85,19 +82,9 @@ export const ShareModel = (sequelize: Sequelize) => {
                 type: DataTypes.TEXT,
                 allowNull: true,
             },
-            created_at: {
-                type: DataTypes.DATE,
-                defaultValue: DataTypes.NOW,
-                allowNull: false,
-            },
             expires_at: {
                 type: DataTypes.DATE,
                 allowNull: true,
-            },
-            is_active: {
-                type: DataTypes.BOOLEAN,
-                defaultValue: true,
-                allowNull: false,
             },
             last_accessed_at: {
                 type: DataTypes.DATE,
@@ -107,7 +94,9 @@ export const ShareModel = (sequelize: Sequelize) => {
         {
             sequelize,
             tableName: 'shares',
-            timestamps: false, // We only have created_at, not updated_at
+            timestamps: true, // We only have created_at, not updated_at
+            createdAt: 'created_at',
+            updatedAt: 'updated_at',
             indexes: [
                 {
                     fields: ['file_id'],
@@ -120,12 +109,6 @@ export const ShareModel = (sequelize: Sequelize) => {
                 },
                 {
                     fields: ['expires_at'],
-                },
-                {
-                    fields: ['is_active'],
-                    where: {
-                        is_active: true,
-                    },
                 },
                 {
                     unique: true,
