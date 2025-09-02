@@ -1,11 +1,6 @@
-import fs from "fs"
 import path from "path"
 import s3Service from "@/config/s3.config"
-
-interface FileResult {
-    fileName: string
-    url: string
-}
+import { type IFileInfo } from "@/models/File.model"
 
 export interface IFile {
     filename: string
@@ -15,16 +10,7 @@ export interface IFile {
     originalName: string
 }
 
-const deleteLocalFile = async (filePath: string) => {
-    try {
-        await fs.promises.unlink(filePath)
-    } catch (err) {
-        console.error(`Error deleting local file ${filePath}:`, err)
-    }
-}
-// const uploadDir = path.join(process.cwd(), "src/public/images")
-
-const processFile = async (file: File): Promise<FileResult> => {
+const processFile = async (file: File): Promise<IFileInfo> => {
     // Bun/Hono File => get ArrayBuffer
     const fileExtension = path.extname(file.name)
     const basename = path.basename(file.name, fileExtension).replace(/ /g, '_')
@@ -32,8 +18,6 @@ const processFile = async (file: File): Promise<FileResult> => {
     const finalName = `${basename}_${uniqueSuffix}${fileExtension}`
     const buffer = Buffer.from(await file.arrayBuffer())
 
-    // const filePath = path.join(uploadDir, finalName) // already saved by middleware
-    // const buffer = await fs.readFileSync(filePath)
     const s3File: IFile = {
         filename: finalName,
         mimetype: file.type,
@@ -43,14 +27,11 @@ const processFile = async (file: File): Promise<FileResult> => {
     }
     // Upload to S3
     const uploadFileName = await s3Service.uploadFile(s3File)
-    const fileUrl = await s3Service.getFileUrl(uploadFileName)
-
-    // Clean up local files
-    // await deleteLocalFile(finalName)
 
     return {
-        fileName: uploadFileName,
-        url: fileUrl,
+        file_size: buffer.length,
+        file_type: file.type,
+        storage_path: uploadFileName,
     }
 }
 

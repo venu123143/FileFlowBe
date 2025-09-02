@@ -23,6 +23,8 @@ const createFile = async (file: FileAttributes, transaction: Transaction) => {
     return createdFile;
 }
 const getFileSystemTree = async (userId: string): Promise<FileSystemNode[]> => {
+    // here build_children_recursive is the function that we created in the migration file.
+    // it exists in the database.so we can use it in the query. this function is used to get the children of the folder.
     const query = `
       SELECT 
         JSON_AGG(

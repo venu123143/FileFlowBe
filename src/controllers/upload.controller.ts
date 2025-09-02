@@ -3,6 +3,7 @@ import res from "@/utils/response"
 import uploadService from "@/services/upload.service"
 import s3Service from "@/config/s3.config"
 import type { IUserAttributes } from "@/models/User.model"
+import type { IFileInfo } from "@/models"
 
 const uploadFile = async (c: Context) => {
     try {
@@ -30,8 +31,10 @@ const uploadFile = async (c: Context) => {
 
 const deleteFile = async (c: Context) => {
     try {
-        const { fileName } = c.req.param()
-        await s3Service.deleteFile(fileName as string)
+        const validatedParams = c.get('validatedParams') as { fileName: string }
+        const { fileName } = validatedParams
+
+        await s3Service.deleteFile(fileName)
 
         return res.SuccessResponse(c, 200, {
             message: "File deleted successfully",
@@ -44,8 +47,10 @@ const deleteFile = async (c: Context) => {
 
 const getFiles = async (c: Context) => {
     try {
-        const { fileName } = c.req.param()
-        const url = await s3Service.getFileUrl(fileName as string)
+        const validatedParams = c.get('validatedParams') as { fileName: string }
+        const { fileName } = validatedParams
+
+        const url = await s3Service.getFileUrl(fileName)
         if (!url) {
             return res.FailureResponse(c, 404, { message: "File not found" })
         }
@@ -61,12 +66,8 @@ const getFiles = async (c: Context) => {
 
 const initiateUpload = async (c: Context) => {
     try {
-        const body = await c.req.json<{ fileName: string; mimeType: string }>()
-        const { fileName, mimeType } = body
-
-        if (!fileName || !mimeType) {
-            return res.FailureResponse(c, 400, { message: "Missing required parameters" })
-        }
+        const validated = c.get('validated') as { fileName: string; mimeType: string }
+        const { fileName, mimeType } = validated
 
         const { uploadId, key } = await s3Service.initiateMultipartUpload(fileName, mimeType)
         if (!uploadId || !key) {
@@ -86,15 +87,17 @@ const initiateUpload = async (c: Context) => {
 }
 
 const uploadChunk = async (c: Context) => {
-    const { uploadId } = c.req.param()
+    const validatedParams = c.get('validatedParams') as { uploadId: string }
+    const { uploadId } = validatedParams
+
     try {
         const formData = await c.req.formData()
         const key = formData.get("key") as string
         const metadataRaw = formData.get("metadata") as string
         const chunk = formData.get("chunk") as File
 
-        if (!uploadId || !key || !metadataRaw || !chunk) {
-            return res.FailureResponse(c, 400, { message: "Missing required parameters" })
+        if (!key || !metadataRaw || !chunk) {
+            return res.FailureResponse(c, 400, { message: "Missing required form data: key, metadata, or chunk" })
         }
 
         const metadata = JSON.parse(metadataRaw)
@@ -115,21 +118,23 @@ const uploadChunk = async (c: Context) => {
 }
 
 const completeUpload = async (c: Context) => {
-    const { uploadId } = c.req.param()
-    const body = await c.req.json<{ key: string; parts: any[] }>()
-    const { key, parts } = body
-
-    if (!uploadId || !key || !parts) {
-        return res.FailureResponse(c, 400, { message: "Missing required parameters" })
-    }
+    const validatedParams = c.get('validatedParams') as { uploadId: string }
+    const validated = c.get('validated') as { key: string; parts: any[] }
+    const { uploadId } = validatedParams
+    const { key, parts } = validated
 
     try {
-        await s3Service.completeMultipartUpload(uploadId, key, parts)
-        const fileURL = await s3Service.getFileUrl(key)
+        await s3Service.completeMultipartUpload(uploadId, key, parts);
+        const metadata = await s3Service.getMetadata(key);
 
+        const result: IFileInfo = {
+            file_size: metadata.contentLength || 0,
+            file_type: metadata.contentType || '',
+            storage_path: key
+        }
         return res.SuccessResponse(c, 200, {
             message: "Upload completed successfully",
-            data: { location: fileURL },
+            data: result
         })
     } catch (error: any) {
         return res.FailureResponse(c, 500, {
@@ -140,13 +145,10 @@ const completeUpload = async (c: Context) => {
 }
 
 const abortUpload = async (c: Context) => {
-    const { uploadId } = c.req.param()
-    const body = await c.req.json<{ key: string }>()
-    const { key } = body
-
-    if (!uploadId || !key) {
-        return res.FailureResponse(c, 400, { message: "Missing required parameters" })
-    }
+    const validatedParams = c.get('validatedParams') as { uploadId: string }
+    const validated = c.get('validated') as { key: string }
+    const { uploadId } = validatedParams
+    const { key } = validated
 
     try {
         await s3Service.abortMultipartUpload(uploadId, key)
@@ -163,15 +165,13 @@ const abortUpload = async (c: Context) => {
 }
 
 const getPartsByUploadKey = async (c: Context) => {
-    const { uploadId } = c.req.param()
-    const { key } = c.req.query()
-
-    if (!key) {
-        return res.FailureResponse(c, 400, { message: "Missing file key." })
-    }
+    const validatedParams = c.get('validatedParams') as { uploadId: string }
+    const validatedQuery = c.get('validatedQuery') as { key: string }
+    const { uploadId } = validatedParams
+    const { key } = validatedQuery
 
     try {
-        const parts = await s3Service.getUploadedParts(uploadId as string, key)
+        const parts = await s3Service.getUploadedParts(uploadId, key)
         return res.SuccessResponse(c, 200, {
             message: "Parts retrieved successfully",
             data: parts,

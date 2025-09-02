@@ -8,14 +8,7 @@ import type { IUserAttributes } from "@/models/User.model";
 import { ForeignKeyConstraintError, UniqueConstraintError, type Transaction } from "sequelize";
 import db from "@/config/database";
 
-// add this in the migration file, to have the unique constraint on the folder name (root level).
-// CREATE UNIQUE INDEX unique_folder_name_per_parent
-//       ON files (
-//         owner_id,
-//         is_folder,
-//         name,
-//         COALESCE(parent_id, '00000000-0000-0000-0000-000000000000')
-//       )
+
 const createFolder = async (c: Context) => {
     try {
         type CreateFolderBody = InferSchemaType<typeof fileDtoValidation.createFolderValidation>;
@@ -75,7 +68,7 @@ const renameFolder = async (c: Context) => {
     }
 };
 
-const moveFileOrFile = async (c: Context) => {
+const moveFileOrFolder = async (c: Context) => {
     try {
         type MoveFileBody = InferSchemaType<typeof fileDtoValidation.moveFileValidation>;
         const value = c.get<MoveFileBody>('validated');
@@ -154,7 +147,7 @@ const getFileSystemTree = async (c: Context) => {
 export default {
     createFolder,
     renameFolder,
-    moveFileOrFile,
+    moveFileOrFolder,
     createFile,
     getFileSystemTree
 };

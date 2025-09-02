@@ -1,5 +1,6 @@
 import type { QueryInterface } from 'sequelize';
 
+// add this in the migration file, to have the unique constraint on the folder name (root level).
 export async function up(queryInterface: QueryInterface) {
   await queryInterface.sequelize.query(`
       CREATE UNIQUE INDEX unique_folder_name_per_parent

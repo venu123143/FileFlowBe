@@ -19,7 +19,7 @@ export class FileRouter {
 
         this.router.post('/folder', validateBody(fileDtoValidation.createFolderValidation), FileController.createFolder);
         this.router.patch('/folder/:id/rename', validateBody(fileDtoValidation.renameFolderValidation), FileController.renameFolder);
-        this.router.patch('/folder/:id/move', validateBody(fileDtoValidation.moveFileValidation), FileController.moveFileOrFile);
+        this.router.patch('/folder/:id/move', validateBody(fileDtoValidation.moveFileValidation), FileController.moveFileOrFolder);
         this.router.post('/file', validateBody(fileDtoValidation.createFileValidation), FileController.createFile);
         this.router.get('/file-system-tree', FileController.getFileSystemTree);
     }

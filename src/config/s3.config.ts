@@ -56,7 +56,7 @@ export class S3Service {
         return `https://${config.CLOUDFLARE.CDN_DOMAIN}/${key}`;
     }
 
-    private calculateChunkChecksum(chunkBuffer: Buffer): string {
+    private calculateChunkChecksum(chunkBuffer: Buffer<ArrayBuffer>): string {
         const hash = crypto.createHash('sha256');
         hash.update(chunkBuffer);
         return hash.digest('hex');
@@ -206,7 +206,7 @@ export class S3Service {
         };
     }
 
-    public async uploadChunk(uploadId: string, key: string, chunkBuffer: Buffer, metadata: ChunkMetadata) {
+    public async uploadChunk(uploadId: string, key: string, chunkBuffer: Buffer<ArrayBuffer>, metadata: ChunkMetadata) {
         const checksum = this.calculateChunkChecksum(chunkBuffer);
         const response = await this.s3Client.send(new UploadPartCommand({
             Bucket: config.S3.BUCKET_NAME,
