@@ -4,6 +4,7 @@ import res from "@/utils/response";
 import userDtoValidation from "@/validation/user.validation";
 import userRepository from "@/repository/user.repository";
 import userService from "@/services/user.service";
+import type { IUserAttributes } from "@/models/User.model";
 
 
 /**
@@ -56,7 +57,7 @@ const Login = async (c: Context) => {
         }
         // Check if password is correct
         const isPasswordCorrect = await userService.verifyPassword(password, user.password_hash);
-        
+
         if (!isPasswordCorrect) {
             return res.FailureResponse(c, 400, {
                 message: "Invalid password",
@@ -74,8 +75,74 @@ const Login = async (c: Context) => {
     }
 }
 
+const getAllUsers = async (c: Context) => {
+    try {
+        const validated = c.get('validated') as InferSchemaType<typeof userDtoValidation.getAllUsersValidation>;
+        const users = await userRepository.getAllUsers(validated);
+        return res.SuccessResponse(c, 200, { message: "Users retrieved successfully", data: users });
+    } catch (error) {
+        console.log(error);
+        return res.FailureResponse(c, 500, { message: "Internal server error" });
+    }
+}
+
+const logout = async (c: Context) => {
+    try {
+        // Get user from context (set by auth middleware)
+        const user = c.get('user');
+        if (!user) {
+            return res.FailureResponse(c, 401, {
+                message: "User not authenticated.",
+            });
+        }
+
+        // Get the session token from Authorization header
+        const authorization = c.req.header("Authorization");
+        const sessionToken = authorization!.split(" ")[1];
+        if (!sessionToken) {
+            return res.FailureResponse(c, 401, {
+                message: "Session token not found.",
+            });
+        }
+
+        // Perform logout (deactivate session in DB and remove from Redis)
+        const logoutSuccess = await userService.logout(user.id, sessionToken);
+
+        if (!logoutSuccess) {
+            return res.FailureResponse(c, 500, {
+                message: "Logout failed. Please try again.",
+            });
+        }
+
+        // Return success response for logout
+        return res.SuccessResponse(c, 200, {
+            message: "Logout successful",
+            data: {
+                user_id: user.id,
+                email: user.email,
+            },
+        });
+    } catch (error) {
+        console.log(error);
+        return res.FailureResponse(c, 500, { message: "Internal server error" });
+    }
+}
+
+const logoutAll = async (c: Context) => {
+    try {
+        const user = c.get('user') as IUserAttributes;
+        await userService.logoutAllSessions(user.id);
+        return res.SuccessResponse(c, 200, { message: "Logout all sessions successful", data: {} });
+    } catch (error) {
+        console.log(error);
+        return res.FailureResponse(c, 500, { message: "Internal server error" });
+    }
+}
 
 export default {
     Signup,
-    Login
+    Login,
+    getAllUsers,
+    logout,
+    logoutAll
 }

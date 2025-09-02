@@ -58,8 +58,17 @@ const signupValidation = Joi.object({
         })
 });
 
+const getAllUsersValidation = Joi.object({
+    page: Joi.number().integer().min(1).default(1),
+    limit: Joi.number().integer().min(1).max(100).default(10),
+    search: Joi.string().max(255).trim().allow(""),
+    is_active: Joi.boolean(),
+    email_verified: Joi.boolean(),
+  });
+
 
 export default {
     loginValidation,
-    signupValidation
+    signupValidation,
+    getAllUsersValidation
 }

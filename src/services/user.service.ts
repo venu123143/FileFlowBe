@@ -36,7 +36,7 @@ async function generateSession(user: IUserAttributes, metadata?: Record<string, 
     return { jwt_token, expiresAt };
 }
 
-async function logout(userId: number, sessionToken: string): Promise<boolean> {
+async function logout(userId: string, sessionToken: string): Promise<boolean> {
     // 1. Delete session from database completely
     await userRepository.deleteSessionByToken(sessionToken);
 
@@ -49,9 +49,9 @@ async function logout(userId: number, sessionToken: string): Promise<boolean> {
 }
 
 
-async function logoutAllSessions(userId: number): Promise<boolean> {
+async function logoutAllSessions(userId: string): Promise<boolean> {
     // 1. Deactivate all active sessions for the user in database
-    const activeSessions = await userRepository.findActiveSessionsByUserId(userId.toString());
+    const activeSessions = await userRepository.findActiveSessionsByUserId(userId);
 
     for (const session of activeSessions) {
         await userRepository.deactivateSessionByToken(session.session_token);

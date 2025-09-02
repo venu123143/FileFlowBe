@@ -239,6 +239,17 @@ const getAllSharedFilesWithMe = async (c: Context) => {
     }
 }
 
+const emptyTrash = async (c: Context) => {
+    try {
+        const user = c.get('user') as IUserAttributes;
+        const deletedFiles = await fileRepository.emptyTrash(user.id);
+        return res.SuccessResponse(c, 200, { message: "Trash emptied successfully", data: { deletedFiles } });
+    } catch (error) {
+        console.log(error);
+        return res.FailureResponse(c, 500, { message: "Internal server error" });
+    }
+}
+
 export default {
     createFolder,
     renameFolder,
@@ -251,5 +262,6 @@ export default {
     shareFileOrFolder,
     getAllSharedFiles,
     getAllSharedFilesByMe,
-    getAllSharedFilesWithMe
+    getAllSharedFilesWithMe,
+    emptyTrash
 };

@@ -1,6 +1,6 @@
 import db from "@/config/database"
 import { type FileAttributes } from "@/models/File.model"
-import { QueryTypes, type Transaction } from "sequelize";
+import { Op, QueryTypes, type Transaction } from "sequelize";
 import { type FileSystemNode, type SharedFileSystemNode } from "@/types/file.types";
 import { SharePermission, type ShareAttributes } from "@/models/Share.model";
 
@@ -61,11 +61,35 @@ const getFileSystemTree = async (userId: string): Promise<FileSystemNode[]> => {
 
 const getTrash = async (userId: string): Promise<FileSystemNode[]> => {
   const query = `
-      SELECT * FROM files WHERE owner_id = :userId AND deleted_at IS NOT NULL;
+      SELECT 
+        JSON_AGG(
+          JSON_BUILD_OBJECT(
+            'id', f.id,
+            'owner_id', f.owner_id,
+            'parent_id', f.parent_id,
+            'name', f.name,
+            'is_folder', f.is_folder,
+            'access_level', f.access_level,
+            'file_info', f.file_info,
+            'description', f.description,
+            'tags', f.tags,
+            'metadata', f.metadata,
+            'last_accessed_at', f.last_accessed_at,
+            'created_at', f.created_at,
+            'updated_at', f.updated_at,
+            'deleted_at', f.deleted_at,
+            'children', '[]'::json
+          )
+          ORDER BY f.is_folder DESC, f.name ASC
+        ) as file_system
+      FROM files f
+      WHERE f.owner_id = :userId
+        AND f.deleted_at IS NOT NULL;
     `;
   const result = await db.connection.query(query, { type: QueryTypes.RAW, replacements: { userId } }) as any;
   return result[0][0].file_system ? result[0][0].file_system as FileSystemNode[] : [];
 };
+
 
 const restoreFileOrFolder = async (fileId: string, userId: string) => {
   const file = await db.File.update({ deleted_at: null }, { where: { id: fileId, owner_id: userId } });
@@ -406,6 +430,12 @@ const getAllSharedFilesSingleQuery = async (userId: string): Promise<{
   };
 };
 
+const emptyTrash = async (userId: string) => {
+  //  force: true 👈 this makes it a hard delete
+  const deletedFiles = await db.File.destroy({ where: { owner_id: userId, deleted_at: { [Op.ne]: null } }, force: true });
+  return deletedFiles;
+};
+
 
 export default {
   createFolder,
@@ -420,5 +450,6 @@ export default {
   getAllSharedFiles,
   getAllSharedFilesByMe,
   getAllSharedFilesWithMe,
-  getAllSharedFilesSingleQuery
+  getAllSharedFilesSingleQuery,
+  emptyTrash
 }

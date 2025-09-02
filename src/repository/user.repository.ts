@@ -1,5 +1,13 @@
-import db from "@/config/database"; ``
+import db from "@/config/database";
+import { Op } from "sequelize";
 import { type IUserSessionAttributes } from "@/models/UserSession.model";
+interface GetAllUsersParams {
+    page?: number;
+    limit?: number;
+    search?: string;
+    is_active?: boolean;
+    email_verified?: boolean;
+}
 
 const saveSession = async (login_details: IUserSessionAttributes) => {
     await db.User.update({ last_login: new Date() }, { where: { id: login_details.user_id } });
@@ -24,11 +32,41 @@ const createUser = async (email: string, password: string, avatar_url: string, d
     return await db.User.create({ email, password_hash: password, avatar_url, display_name });
 }
 
+
+
+const getAllUsers = async (validated: GetAllUsersParams) => {
+    const { page = 1, limit = 10, search, is_active, email_verified } = validated;
+    // ✅ Pagination
+    const offset = (page - 1) * limit;
+
+    const whereClause: any = {};
+    if (search) {
+        whereClause.OR = [{ email: { [Op.like]: `%${search}%` } }, { display_name: { [Op.like]: `%${search}%` } }];
+    }
+    if (is_active !== undefined && typeof is_active === "boolean") {
+        whereClause.is_active = is_active;
+    }
+    if (email_verified !== undefined && typeof email_verified === "boolean") {
+        whereClause.email_verified = email_verified;
+    }
+    const { rows, count } = await db.User.findAndCountAll({ where: whereClause, offset, limit, raw: true, order: [["created_at", "DESC"]], });
+    return {
+        users: rows,
+        metadata: {
+            total: count,
+            page,
+            limit,
+            totalPages: Math.ceil(count / limit),
+        },
+    };
+}
+
 export default {
     saveSession,
     deleteSessionByToken,
     findActiveSessionsByUserId,
     findUserByEmail,
     deactivateSessionByToken,
-    createUser
+    createUser,
+    getAllUsers
 }
