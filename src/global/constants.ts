@@ -15,6 +15,8 @@ const MAX_PAGINATION_LIMIT = 100;
 const CACHE_RESULT = false; // make it true for caching the results
 const MAX_CPU_USAGE = 0.8; // 80% CPU usage threshold
 const CLOUDFLARE_BASE_URL = "https://api.cloudflare.com/client/v4";
+const FILE_TRASH_EXPIRY_TIME = 30 
+const SHARE_EXPIRY_TIME = 30 // 30 DAYS
 
 export default {
     CACHE_TTL,
@@ -31,4 +33,6 @@ export default {
     RESEND_COOLDOWN_MINUTES,
     INVITATION_EXPIRY_TIME,
     CLOUDFLARE_BASE_URL,
+    FILE_TRASH_EXPIRY_TIME,
+    SHARE_EXPIRY_TIME,
 }
