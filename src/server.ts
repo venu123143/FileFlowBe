@@ -3,7 +3,6 @@ import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { logger } from "hono/logger";
 import { requestId } from "hono/request-id";
-import { csrf } from "hono/csrf";
 import { secureHeaders } from "hono/secure-headers";
 import { corsOptions, csrfMiddleware } from "@/utils/cors-options";
 import session from "@/core/session";
