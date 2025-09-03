@@ -5,9 +5,11 @@
   "private": true,
   "scripts": {
     "dev": "bun run --hot src/index.ts",
+    "migrate": "sequelize db:migrate",
+    "build": "tsc",
     "lint": "eslint --ext .ts src/",
     "start": "bun run lint && bun run dev",
-    "docs": "bunx @compodoc/compodoc -p tsconfig.json -s src --name 'Ridewave user-service API Documentation'"
+    "docs": "bunx @compodoc/compodoc -p tsconfig.json -s src --name 'File flow BE API Documentation'"
   },
   "engines": {
     "bun": "1.2.15"

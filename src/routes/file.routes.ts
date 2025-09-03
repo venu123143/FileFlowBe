@@ -16,7 +16,7 @@ export class FileRouter {
     private initializeRoutes() {
         // Apply authentication middleware to all routes
         this.router.use(AuthMiddleware.authMiddleware);
-
+        // this.router.post('/upload/thumbnail', validateBody(fileDtoValidation.uploadThumbnailValidation), FileController.uploadThumbnail);
         this.router.post('/folder', validateBody(fileDtoValidation.createFolderValidation), FileController.createFolder);
         this.router.patch('/folder/:id/rename', validateBody(fileDtoValidation.renameFolderValidation), FileController.renameFolder);
         this.router.patch('/folder/:id/move', validateBody(fileDtoValidation.moveFileValidation), FileController.moveFileOrFolder);

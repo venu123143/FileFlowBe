@@ -1,9 +1,15 @@
 import { DataTypes, Model, type Optional, Sequelize } from 'sequelize';
 
+export enum UserRole {
+    USER = 'USER',
+    ADMIN = 'ADMIN',
+}
+
 // Define the attributes interface
 export interface IUserAttributes {
     id: string;
     email: string;
+    role: UserRole;
     password_hash: string;
     display_name?: string;
     avatar_url?: string;
@@ -22,6 +28,7 @@ export interface UserCreationAttributes extends Optional<IUserAttributes, 'id' |
 export class User extends Model<IUserAttributes, UserCreationAttributes> implements IUserAttributes {
     declare id: string;
     declare email: string;
+    declare role: UserRole;
     declare password_hash: string;
     declare display_name?: string;
     declare avatar_url?: string;
@@ -53,6 +60,12 @@ export const UserModel = (sequelize: Sequelize) => {
                 validate: {
                     isEmail: true,
                 },
+            },
+            role: {
+                type: DataTypes.ENUM,
+                values: Object.values(UserRole),
+                defaultValue: UserRole.USER,
+                allowNull: false,
             },
             password_hash: {
                 type: DataTypes.TEXT,

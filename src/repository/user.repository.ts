@@ -1,6 +1,7 @@
 import db from "@/config/database";
 import { Op } from "sequelize";
 import { type IUserSessionAttributes } from "@/models/UserSession.model";
+import { UserRole } from "@/models/User.model";
 interface GetAllUsersParams {
     page?: number;
     limit?: number;
@@ -29,7 +30,7 @@ const findUserByEmail = async (email: string) => {
 }
 
 const createUser = async (email: string, password: string, avatar_url: string, display_name: string) => {
-    return await db.User.create({ email, password_hash: password, avatar_url, display_name });
+    return await db.User.create({ email, password_hash: password, avatar_url, display_name, role: UserRole.USER });
 }
 
 

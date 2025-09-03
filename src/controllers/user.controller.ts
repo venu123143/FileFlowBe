@@ -67,11 +67,12 @@ const Login = async (c: Context) => {
         const session = await userService.generateSession(user);
         return res.SuccessResponse(c, 200, {
             message: "Login successful",
-            data: session,
+            data: { jwt: session, user: user },
         });
 
     } catch (error) {
-
+        console.log(error);
+        return res.FailureResponse(c, 500, { message: "Internal server error" });
     }
 }
 
