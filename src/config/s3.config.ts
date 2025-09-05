@@ -18,7 +18,7 @@ import config from "@/config/config";
 import crypto from "crypto";
 import constants from "@/global/constants";
 import { type IFile } from "@/services/upload.service";
-
+import slugify from "slugify"; // npm i slugify
 
 export interface ChunkMetadata {
     chunkNumber: number;
@@ -171,13 +171,19 @@ export class S3Service {
     }
 
     public async initiateMultipartUpload(fileName: string, mimeType: string): Promise<{ uploadId: string | undefined; key: string }> {
-        const key = `${FolderNameEnum.VIDEOS}/${fileName}`;
+        const safeName = slugify(fileName, {
+            replacement: "_",  // replace invalid chars with underscore
+            remove: /[<>:"/\\|?*\x00-\x1F]/g, // remove invalid S3 header characters
+            lower: false,
+            strict: true
+        });
+        const key = `${FolderNameEnum.VIDEOS}/${safeName}`;
         const { UploadId } = await this.s3Client.send(new CreateMultipartUploadCommand({
             Bucket: config.S3.BUCKET_NAME,
             Key: key,
             ContentType: mimeType,
             Metadata: {
-                originalName: fileName,
+                originalName: safeName,
                 uploadStarted: new Date().toISOString(),
             },
             // CacheControl: 'public, max-age=31536000',
