@@ -15,7 +15,12 @@ export async function up(queryInterface: QueryInterface) {
                 'name', f.name,
                 'is_folder', f.is_folder,
                 'access_level', f.access_level,
-                'file_info', f.file_info,
+                'file_info', CASE 
+                    WHEN f.is_folder = true THEN 
+                        COALESCE(f.file_info, '{}'::jsonb) || 
+                        JSON_BUILD_OBJECT('file_size', calculate_folder_size(f.id))::jsonb
+                    ELSE f.file_info
+                END,
                 'description', f.description,
                 'tags', f.tags,
                 'metadata', f.metadata,

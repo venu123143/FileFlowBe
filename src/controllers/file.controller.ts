@@ -161,9 +161,9 @@ const restoreFileOrFolder = async (c: Context) => {
     try {
         const user = c.get('user') as IUserAttributes;
         const fileId = c.req.param('id');
-        const restoredFile = await fileRepository.restoreFileOrFolder(fileId, user.id);
-
-        return res.SuccessResponse(c, 200, { message: "File/folder restored successfully", data: restoredFile });
+        console.log("Restoring file/folder with ID:", fileId, "for user:", user.id);
+        await fileRepository.restoreFileOrFolder(fileId, user.id);
+        return res.SuccessResponse(c, 200, { message: "File/folder restored successfully", data: {} });
     } catch (error) {
         console.log(error);
         return res.FailureResponse(c, 500, { message: "Internal server error" });

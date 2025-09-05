@@ -30,28 +30,33 @@ const getFileSystemTree = async (userId: string, accessLevel: AccessLevel | null
 
   const query = `
       SELECT 
-        JSON_AGG(
-          JSON_BUILD_OBJECT(
-            'id', f.id,
-            'owner_id', f.owner_id,
-            'parent_id', f.parent_id,
-            'name', f.name,
-            'is_folder', f.is_folder,
-            'access_level', f.access_level,
-            'file_info', f.file_info,
-            'description', f.description,
-            'tags', f.tags,
-            'metadata', f.metadata,
-            'last_accessed_at', f.last_accessed_at,
-            'created_at', f.created_at,
-            'updated_at', f.updated_at,
-            'children', CASE 
-              WHEN f.is_folder = true THEN build_children_recursive(f.id, $2)
-              ELSE '[]'::json
-            END
-          )
-          ORDER BY f.is_folder DESC, f.name ASC
-        ) as file_system
+          JSON_AGG(
+              JSON_BUILD_OBJECT(
+                  'id', f.id,
+                  'owner_id', f.owner_id,
+                  'parent_id', f.parent_id,
+                  'name', f.name,
+                  'is_folder', f.is_folder,
+                  'access_level', f.access_level,
+                  'file_info', CASE 
+                      WHEN f.is_folder = true THEN 
+                          COALESCE(f.file_info, '{}'::jsonb) || 
+                          JSON_BUILD_OBJECT('file_size', calculate_folder_size(f.id))::jsonb
+                      ELSE f.file_info
+                  END,
+                  'description', f.description,
+                  'tags', f.tags,
+                  'metadata', f.metadata,
+                  'last_accessed_at', f.last_accessed_at,
+                  'created_at', f.created_at,
+                  'updated_at', f.updated_at,
+                  'children', CASE 
+                      WHEN f.is_folder = true THEN build_children_recursive(f.id, $2)
+                      ELSE '[]'::json
+                  END
+              )
+              ORDER BY f.is_folder DESC, f.name ASC
+          ) as file_system
       FROM files f
       WHERE f.parent_id IS NULL 
         AND f.owner_id = $1
@@ -78,7 +83,12 @@ const getTrash = async (userId: string): Promise<FileSystemNode[]> => {
             'name', f.name,
             'is_folder', f.is_folder,
             'access_level', f.access_level,
-            'file_info', f.file_info,
+            'file_info',CASE 
+                      WHEN f.is_folder = true THEN 
+                          COALESCE(f.file_info, '{}'::jsonb) || 
+                          JSON_BUILD_OBJECT('file_size', calculate_folder_size(f.id))::jsonb
+                      ELSE f.file_info
+                  END,
             'description', f.description,
             'tags', f.tags,
             'metadata', f.metadata,
@@ -100,7 +110,7 @@ const getTrash = async (userId: string): Promise<FileSystemNode[]> => {
 
 
 const restoreFileOrFolder = async (fileId: string, userId: string) => {
-  const file = await db.File.update({ deleted_at: null }, { where: { id: fileId, owner_id: userId } });
+  const file = await db.File.restore({ where: { id: fileId, owner_id: userId } });
   return file;
 };
 

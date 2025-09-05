@@ -15,6 +15,6 @@ export async function up(queryInterface: QueryInterface) {
 
 export async function down(queryInterface: QueryInterface) {
   await queryInterface.sequelize.query(`
-    DROP INDEX unique_folder_name_per_parent ON files;
+       DROP INDEX IF EXISTS unique_folder_name_per_parent;
   `);
 }
