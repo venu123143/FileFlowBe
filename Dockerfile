@@ -14,9 +14,8 @@ RUN bun install
 # Copy source code
 COPY . .
 
-# Build TypeScript -> dist
+# Optional: type-check/build for CI validation (won't emit JS)
 RUN bun run build
-
 
 # ============================
 # Stage 2: Production
@@ -31,8 +30,8 @@ COPY package.json bun.lock bunfig.toml ./
 # Install only production dependencies
 RUN bun install --production
 
-# Copy built files from builder
-COPY --from=builder /app/dist ./dist
+# Copy source code from builder
+COPY --from=builder /app/src ./src
 
 # Expose app port
 EXPOSE 7000
@@ -41,5 +40,5 @@ EXPOSE 7000
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
   CMD curl -f http://localhost:7000/health || exit 1
 
-# Start the server
-CMD ["bun", "run", "dist/index.js"]
+# Start the server directly with Bun (no dist)
+CMD ["bun", "src/index.ts"]
