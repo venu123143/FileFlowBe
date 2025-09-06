@@ -54,3 +54,6 @@ jobs:
             docker-compose pull
             docker-compose up -d
             docker system prune -f
+
+              # Run migrations via script
+            ./migrate.sh
