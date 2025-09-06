@@ -1,5 +1,4 @@
 import type { Context, Next } from 'hono'
-import fs from 'fs/promises'
 
 // Allowed mime types (same as your multerFilter)
 const allowedMimeTypes = [

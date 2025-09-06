@@ -1,5 +1,6 @@
-// src/config/dbConfig.js
-require('dotenv').config();
+
+import dotenv from 'dotenv';
+dotenv.config();
 
 const dbConfig = {
   development: {
@@ -31,4 +32,4 @@ const dbConfig = {
   },
 };
 
-module.exports = dbConfig;
+export default dbConfig;

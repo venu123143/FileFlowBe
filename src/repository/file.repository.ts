@@ -2,7 +2,7 @@ import db from "@/config/database"
 import { type FileAttributes, AccessLevel } from "@/models/File.model"
 import { Op, QueryTypes, type Transaction } from "sequelize";
 import { type FileSystemNode, type SharedFileSystemNode } from "@/types/file.types";
-import { SharePermission, type ShareAttributes } from "@/models/Share.model";
+import { type ShareAttributes } from "@/models/Share.model";
 
 const createFolder = async (value: FileAttributes) => {
   const folder = await db.File.create(value);
