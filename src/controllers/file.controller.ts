@@ -242,7 +242,9 @@ const getAllSharedFilesWithMe = async (c: Context) => {
 
 const emptyTrash = async (c: Context) => {
     try {
+        console.log("Emptying trash");
         const user = c.get('user') as IUserAttributes;
+        console.log("Emptying trash for user:", user.id);
         const deletedFiles = await fileRepository.emptyTrash(user.id);
         return res.SuccessResponse(c, 200, { message: "Trash emptied successfully", data: { deletedFiles } });
     } catch (error) {

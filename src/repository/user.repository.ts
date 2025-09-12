@@ -35,14 +35,22 @@ const createUser = async (email: string, password: string, avatar_url: string, d
 
 
 
-const getAllUsers = async (validated: GetAllUsersParams) => {
+const getAllUsers = async (validated: GetAllUsersParams, user_id: string) => {
     const { page = 1, limit = 10, search, is_active, email_verified } = validated;
+
     // ✅ Pagination
     const offset = (page - 1) * limit;
 
-    const whereClause: any = {};
+    const whereClause: any = {
+        // Exclude the current user
+        id: { [Op.ne]: user_id }
+    };
+
     if (search) {
-        whereClause.OR = [{ email: { [Op.like]: `%${search}%` } }, { display_name: { [Op.like]: `%${search}%` } }];
+        whereClause[Op.or] = [
+            { email: { [Op.like]: `%${search}%` } },
+            { display_name: { [Op.like]: `%${search}%` } }
+        ];
     }
     if (is_active !== undefined && typeof is_active === "boolean") {
         whereClause.is_active = is_active;
@@ -50,7 +58,16 @@ const getAllUsers = async (validated: GetAllUsersParams) => {
     if (email_verified !== undefined && typeof email_verified === "boolean") {
         whereClause.email_verified = email_verified;
     }
-    const { rows, count } = await db.User.findAndCountAll({ where: whereClause, offset, limit, raw: true, order: [["created_at", "DESC"]], });
+
+    const { rows, count } = await db.User.findAndCountAll({
+        where: whereClause,
+        offset,
+        limit,
+        raw: true,
+        order: [["created_at", "DESC"]],
+        attributes: ["id", "email", "display_name", "avatar_url", "created_at"]
+    });
+
     return {
         users: rows,
         metadata: {
@@ -60,7 +77,8 @@ const getAllUsers = async (validated: GetAllUsersParams) => {
             totalPages: Math.ceil(count / limit),
         },
     };
-}
+};
+
 
 export default {
     saveSession,

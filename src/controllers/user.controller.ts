@@ -78,8 +78,13 @@ const Login = async (c: Context) => {
 
 const getAllUsers = async (c: Context) => {
     try {
-        const validated = c.get('validated') as InferSchemaType<typeof userDtoValidation.getAllUsersValidation>;
-        const users = await userRepository.getAllUsers(validated);
+        const validated = c.get('validatedQuery') as InferSchemaType<typeof userDtoValidation.getAllUsersValidation>;
+        const user = c.get('user') as IUserAttributes;
+        if (!user) {
+            return res.FailureResponse(c, 401, { message: "User not authenticated." });
+        }
+
+        const users = await userRepository.getAllUsers(validated, user.id);
         return res.SuccessResponse(c, 200, { message: "Users retrieved successfully", data: users });
     } catch (error) {
         console.log(error);

@@ -449,11 +449,15 @@ const getAllSharedFilesSingleQuery = async (userId: string): Promise<{
 };
 
 const emptyTrash = async (userId: string) => {
-  //  force: true 👈 this makes it a hard delete
-  const deletedFiles = await db.File.destroy({ where: { owner_id: userId, deleted_at: { [Op.ne]: null } }, force: true });
+  const deletedFiles = await db.File.destroy({
+    where: {
+      owner_id: userId,
+      deleted_at: { [Op.ne]: null }
+    },
+    force: true
+  });
   return deletedFiles;
 };
-
 
 export default {
   createFolder,

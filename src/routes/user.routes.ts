@@ -18,7 +18,7 @@ export class AuthRouter {
         this.router.post('/login', validateBody(userDtoValidation.loginValidation), AuthController.Login);
         this.router.post('/logout', AuthMiddleware.authMiddleware, AuthController.logout);
         this.router.post('/logout-all', AuthMiddleware.authMiddleware, AuthController.logoutAll);
-        this.router.get('/user/all', validateQuery(userDtoValidation.getAllUsersValidation), AuthController.getAllUsers);
+        this.router.get('/user/all', AuthMiddleware.authMiddleware, validateQuery(userDtoValidation.getAllUsersValidation), AuthController.getAllUsers);
     }
 
     public getRouter() {
