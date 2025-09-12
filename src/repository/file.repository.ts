@@ -10,12 +10,12 @@ const createFolder = async (value: FileAttributes) => {
 }
 
 const renameFolder = async (folderId: string, ownerId: string, newName: string) => {
-  return await db.File.update({ name: newName }, { where: { id: folderId, owner_id: ownerId, is_folder: true } });
+  return await db.File.update({ name: newName }, { where: { id: folderId, owner_id: ownerId } });
 }
 
 // Update the file's parent_id to move it into the folder
-const moveFileOrFile = async (target_folder_id: string, folderId: string, ownerId: string) => {
-  const updatedFile = await db.File.update({ parent_id: folderId }, { where: { id: target_folder_id, owner_id: ownerId } });
+const moveFileOrFile = async (target_folder_id: string, folderOrFileToMove: string, ownerId: string) => {
+  const updatedFile = await db.File.update({ parent_id: target_folder_id }, { where: { id: folderOrFileToMove, owner_id: ownerId } });
   return updatedFile;
 }
 

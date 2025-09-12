@@ -74,9 +74,9 @@ const moveFileOrFolder = async (c: Context) => {
         type MoveFileBody = InferSchemaType<typeof fileDtoValidation.moveFileValidation>;
         const value = c.get<MoveFileBody>('validated');
         const user = c.get('user') as IUserAttributes;
-        const folderId = c.req.param('id');
+        const folderOrFileToMove = c.req.param('id');
 
-        const [affectedCount] = await fileRepository.moveFileOrFile(value.target_folder_id, folderId, user.id);
+        const [affectedCount] = await fileRepository.moveFileOrFile(value.target_folder_id, folderOrFileToMove, user.id);
         if (affectedCount === 0) {
             return res.SuccessResponse(c, 200, {
                 message: "File is already in this folder",
