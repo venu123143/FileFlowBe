@@ -4,13 +4,14 @@ import uploadService from "@/services/upload.service"
 import s3Service from "@/config/s3.config"
 import type { IUserAttributes } from "@/models/User.model"
 import type { IFileInfo } from "@/models"
+import notificationService from "@/services/notification.service"
 
 const uploadFile = async (c: Context) => {
+    const user = c.get("user") as IUserAttributes
+    if (!user?.id) {
+        return res.FailureResponse(c, 400, { message: "User not found" })
+    }
     try {
-        const user = c.get("user") as IUserAttributes
-        if (!user?.id) {
-            return res.FailureResponse(c, 400, { message: "User not found" })
-        }
 
         const formData = await c.req.formData()
         const files = formData.getAll("files") as File[]
@@ -24,18 +25,21 @@ const uploadFile = async (c: Context) => {
             message: "File(s) uploaded successfully",
             data: results,
         })
-    } catch (error) {
+    } catch (error: any) {
         return res.FailureResponse(c, 500, { message: "Internal server error" })
     }
 }
 
 const deleteFile = async (c: Context) => {
+    const user = c.get("user") as IUserAttributes
     try {
         const validatedParams = c.get('validatedParams') as { fileName: string }
         const { fileName } = validatedParams
 
         await s3Service.deleteFile(fileName)
-
+        if (user?.id) {
+            await notificationService.createFileDeletedNotification(user.id, fileName)
+        }
         return res.SuccessResponse(c, 200, {
             message: "File deleted successfully",
             data: {},
@@ -118,6 +122,7 @@ const uploadChunk = async (c: Context) => {
 }
 
 const completeUpload = async (c: Context) => {
+    const user = c.get("user") as IUserAttributes
     const validatedParams = c.get('validatedParams') as { uploadId: string }
     const validated = c.get('validated') as { key: string; parts: any[] }
     const { uploadId } = validatedParams
@@ -132,11 +137,20 @@ const completeUpload = async (c: Context) => {
             file_type: metadata.contentType || '',
             storage_path: key
         }
+        if (user?.id) {
+            const fileName = key.split('/').pop() || 'Unknown file'
+            await notificationService.createFileUploadSuccessNotification(user.id, { ...result, fileName }, 'multipart')
+        }
+
         return res.SuccessResponse(c, 200, {
             message: "Upload completed successfully",
             data: result
         })
     } catch (error: any) {
+        if (user?.id) {
+            const fileName = key.split('/').pop() || 'Unknown file'
+            await notificationService.createFileUploadFailureNotification(user.id, fileName, error.message || 'Failed to complete multipart upload', 'multipart')
+        }
         return res.FailureResponse(c, 500, {
             message: "Failed to complete upload",
             error: error.message,
@@ -145,6 +159,7 @@ const completeUpload = async (c: Context) => {
 }
 
 const abortUpload = async (c: Context) => {
+    const user = c.get("user") as IUserAttributes
     const validatedParams = c.get('validatedParams') as { uploadId: string }
     const validated = c.get('validated') as { key: string }
     const { uploadId } = validatedParams
@@ -152,6 +167,16 @@ const abortUpload = async (c: Context) => {
 
     try {
         await s3Service.abortMultipartUpload(uploadId, key)
+
+        if (user?.id) {
+            const fileName = key.split('/').pop() || 'Unknown file'
+            await notificationService.createFileUploadFailureNotification(
+                user.id,
+                fileName,
+                'Upload was cancelled by user',
+                'multipart'
+            )
+        }
         return res.SuccessResponse(c, 200, {
             message: "Upload aborted successfully",
             data: [],

@@ -1,16 +1,31 @@
-// src/index.ts
-import { serve, type ServeOptions, type TLSServeOptions } from "bun";
+
 import { App } from "@/server";
 import config from "@/config/config";
 
-const port = config.PORT;
+// Create your app instance
 const app = new App();
+const socketEngine = app.getSocketEngine();
+const port = config.PORT || 3000;
 
-
-const serverOptions: ServeOptions | TLSServeOptions = {
-  fetch: app.getHandler(),
+// Start Bun server
+Bun.serve({
   port,
+  idleTimeout: 30,
+  websocket: socketEngine.handler().websocket, // <-- attach WebSocket handler
+  async fetch(req, server) {
+    const url = new URL(req.url);
+
+    // Route Socket.IO traffic
+    if (url.pathname.startsWith("/socket.io/")) {
+      return socketEngine.handleRequest(req, server);
+    }
+
+    // Route normal HTTP traffic to Hono
+    return app.getHandler()(req, server);
+  },
+  // Conditionally add HTTP2 support
   ...(config.HTTP2.ENABLED && { http2: true }),
+  // Conditionally add TLS configuration for HTTP2
   ...(config.HTTP2.SSL.ENABLED && config.HTTP2.SSL.CERT_PATH && config.HTTP2.SSL.KEY_PATH
     ? {
       tls: {
@@ -19,13 +34,6 @@ const serverOptions: ServeOptions | TLSServeOptions = {
       },
     }
     : {}),
-};
+});
 
-serve(serverOptions);
-
-const protocol = config.HTTP2.ENABLED ? (config.HTTP2.SSL.ENABLED ? 'https' : 'http') : 'http';
-console.log(`🚀 Hono server is running on ${protocol}://localhost:${port}`);
-
-// if (config.HTTP2.ENABLED) {
-//   console.log(`📡 HTTP/2 is ${config.HTTP2.SSL.ENABLED ? 'enabled with SSL/TLS' : 'enabled'}`);
-// }
+console.log(`🚀 Server running on http://localhost:${port}`);
