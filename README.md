@@ -103,6 +103,34 @@ npx sequelize-cli model:generate --name User --attributes name:string,email:stri
 npx sequelize-cli model:create --name Product --attributes name:string,price:float
 ```
 
+
+### Production Setup (HTTP/2 with SSL)
+
+For production, HTTP/2 requires SSL/TLS:
+
+```bash
+HTTP2_ENABLED=true
+SSL_ENABLED=true
+SSL_CERT_PATH=/path/to/your/certificate.crt
+SSL_KEY_PATH=/path/to/your/private.key
+
+openssl req -nodes -new -x509 -keyout server.key -out server.crt -days 365
+```
+
+### Alternative Paths
+
+You can also use absolute paths:
+
+```bash
+# Windows
+SSL_CERT_PATH=C:\Users\ASUS\OneDrive\Desktop\projects\fileflow\FileFlowBe\certs\server.crt
+SSL_KEY_PATH=C:\Users\ASUS\OneDrive\Desktop\projects\fileflow\FileFlowBe\certs\server.key
+
+# Linux/Mac
+SSL_CERT_PATH=/home/user/projects/fileflow/FileFlowBe/certs/server.crt
+SSL_KEY_PATH=/home/user/projects/fileflow/FileFlowBe/certs/server.key
+```
+
 ---
 
 > ✅ **Tip:** Always review generated migration and seeder files to customize them according to your schema and data requirements.
