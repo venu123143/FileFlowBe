@@ -1,5 +1,20 @@
 import { DataTypes, Model, type Optional, Sequelize } from 'sequelize';
-import { NotificationType } from './enums';
+
+// Updated NotificationType enum
+export enum NotificationType {
+    FILE_SHARED = 'file_shared',
+    FILE_UPDATED = 'file_updated',
+    FILE_UPLOAD_COMPLETED = 'file_upload_completed',
+    FILE_UPLOAD_FAILED = 'file_upload_failed',
+    MULTIPART_UPLOAD_COMPLETED = 'multipart_upload_completed',
+    MULTIPART_UPLOAD_FAILED = 'multipart_upload_failed',
+    FILE_DELETED = 'file_deleted',
+    STORAGE_QUOTA_WARNING = 'storage_quota_warning',
+    STORAGE_QUOTA_EXCEEDED = 'storage_quota_exceeded',
+    SHARE_EXPIRED = 'share_expired',
+    FILE_COMMENTED = 'file_commented',
+    PUBLIC_LINK_ACCESSED = 'public_link_accessed',
+}
 
 // Define the attributes interface
 export interface NotificationAttributes {
@@ -112,6 +127,9 @@ export const NotificationModel = (sequelize: Sequelize) => {
                 },
                 {
                     fields: ['created_at'],
+                },
+                {
+                    fields: ['type'],
                 },
             ],
         }
