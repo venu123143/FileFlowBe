@@ -23,6 +23,17 @@ Bun.serve({
     // Route normal HTTP traffic to Hono
     return app.getHandler()(req, server);
   },
+  // Conditionally add HTTP2 support
+  ...(config.HTTP2.ENABLED && { http2: true }),
+  // Conditionally add TLS configuration for HTTP2
+  ...(config.HTTP2.SSL.ENABLED && config.HTTP2.SSL.CERT_PATH && config.HTTP2.SSL.KEY_PATH
+    ? {
+      tls: {
+        cert: Bun.file(config.HTTP2.SSL.CERT_PATH),
+        key: Bun.file(config.HTTP2.SSL.KEY_PATH),
+      },
+    }
+    : {}),
 });
 
 console.log(`🚀 Server running on http://localhost:${port}`);

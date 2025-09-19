@@ -47,7 +47,7 @@ export class App {
     }
 
     private registerRoutes() {
-        this.app.get("/", (c) => c.text("👋 Welcome to a Bun + Hono API!"));
+        this.app.get("/", (c) => c.text("👋 Welcome to a FILE FLOW API."));
         this.app.route("/api/v1", new MainRouter().getRouter());
     }
 

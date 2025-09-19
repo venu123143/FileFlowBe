@@ -1,38 +1,21 @@
 # ============================
-# Stage 1: Builder
+# Single-stage Bun build
 # ============================
-FROM oven/bun:1.2.21-debian AS builder
+FROM oven/bun:1.2.21-debian
 
 WORKDIR /app
 
-# Copy package files
+# Copy package files and Bun config
 COPY package.json bun.lock bunfig.toml ./
 
-# Install all dependencies (including dev)
+# Install all dependencies (dev + prod)
 RUN bun install
 
-# Copy source code
+# Copy the rest of the source code
 COPY . .
 
-# Build TypeScript -> dist
+# Optional: type-check/build for validation
 RUN bun run build
-
-
-# ============================
-# Stage 2: Production
-# ============================
-FROM oven/bun:1.2.21-debian AS production
-
-WORKDIR /app
-
-# Copy only package files
-COPY package.json bun.lock bunfig.toml ./
-
-# Install only production dependencies
-RUN bun install --production
-
-# Copy built files from builder
-COPY --from=builder /app/dist ./dist
 
 # Expose app port
 EXPOSE 7000
@@ -41,5 +24,5 @@ EXPOSE 7000
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
   CMD curl -f http://localhost:7000/health || exit 1
 
-# Start the server
-CMD ["bun", "run", "dist/index.js"]
+# Start Bun directly with TypeScript
+CMD ["bun", "run" , "src/index.ts"]
