@@ -1,4 +1,3 @@
-// src/app.ts
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { logger } from "hono/logger";
@@ -13,6 +12,7 @@ import "@/config/database";
 import RedisConnectionManager from "@/config/redis.config";
 import winston from "@/core/logger";
 import "@/controllers/cron.controller";
+import SocketService from "@/services/socket.service";
 
 export class App {
     private readonly app: Hono;
@@ -33,7 +33,7 @@ export class App {
         this.registerErrorHandler();
         RedisConnectionManager.connect();
         instrument(this.io, {
-            auth: false, // or true if you want to protect with credentials
+            auth: false,
         });
     }
 
@@ -52,18 +52,8 @@ export class App {
     }
 
     private registerSocketHandlers() {
-        this.io.on("connection", (socket) => {
-            console.log("A user connected!", socket.id);
-
-            socket.on("chat message", (msg) => {
-                console.log("message:", msg);
-                this.io.emit("chat message", msg);
-            });
-
-            socket.on("disconnect", () => {
-                console.log("A user disconnected!");
-            });
-        });
+        // Initialize the SocketService with the io instance
+        SocketService.initialize(this.io);
     }
 
     private registerErrorHandler() {

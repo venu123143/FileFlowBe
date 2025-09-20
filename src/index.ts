@@ -36,4 +36,4 @@ Bun.serve({
     : {}),
 });
 
-console.log(`🚀 Server running on http://localhost:${port}`);
+console.log(`🚀 Server running on http${config.HTTP2.SSL.ENABLED ? "s" : ""}://localhost:${port}`);
