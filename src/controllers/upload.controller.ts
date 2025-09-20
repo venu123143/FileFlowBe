@@ -3,8 +3,8 @@ import res from "@/utils/response"
 import uploadService from "@/services/upload.service"
 import s3Service from "@/config/s3.config"
 import type { IUserAttributes } from "@/models/User.model"
-import type { IFileInfo } from "@/models"
-import notificationService from "@/services/notification.service"
+import { NotificationType, type IFileInfo } from "@/models"
+import { addToNotificationQueue } from "@/core/notification-queue"
 
 const uploadFile = async (c: Context) => {
     const user = c.get("user") as IUserAttributes
@@ -21,10 +21,23 @@ const uploadFile = async (c: Context) => {
         }
 
         const results = await Promise.all(files.map((file) => uploadService.processFile(file)))
+        if (user?.id) {
+            addToNotificationQueue({
+                user_id: user.id,
+                type: NotificationType.FILE_UPLOAD_COMPLETED,
+                title: "File(s) uploaded",
+                message: `File(s) have been uploaded successfully`,
+                is_read: false,
+                created_at: new Date(),
+                data: { results },
+                related_user_id: user.id,
+            })
+        }
         return res.SuccessResponse(c, 200, {
             message: "File(s) uploaded successfully",
             data: results,
         })
+
     } catch (error: any) {
         return res.FailureResponse(c, 500, { message: "Internal server error" })
     }
@@ -38,7 +51,16 @@ const deleteFile = async (c: Context) => {
 
         await s3Service.deleteFile(fileName)
         if (user?.id) {
-            await notificationService.createFileDeletedNotification(user.id, fileName)
+            addToNotificationQueue({
+                user_id: user.id,
+                type: NotificationType.FILE_DELETED,
+                title: "File deleted",
+                message: `File ${fileName} has been deleted`,
+                is_read: false,
+                created_at: new Date(),
+                data: {},
+                related_user_id: user.id,
+            })
         }
         return res.SuccessResponse(c, 200, {
             message: "File deleted successfully",
@@ -137,20 +159,40 @@ const completeUpload = async (c: Context) => {
             file_type: metadata.contentType || '',
             storage_path: key
         }
+        
         if (user?.id) {
             const fileName = key.split('/').pop() || 'Unknown file'
-            await notificationService.createFileUploadSuccessNotification(user.id, { ...result, fileName }, 'multipart')
+            addToNotificationQueue({
+                user_id: user.id,
+                type: NotificationType.MULTIPART_UPLOAD_COMPLETED,
+                title: "Multipart upload completed",
+                message: `Multipart upload has been completed successfully`,
+                is_read: false,
+                created_at: new Date(),
+                data: { ...result, fileName },
+                related_user_id: user.id,
+            })
         }
 
         return res.SuccessResponse(c, 200, {
             message: "Upload completed successfully",
             data: result
-        })
+        })        
     } catch (error: any) {
         if (user?.id) {
             const fileName = key.split('/').pop() || 'Unknown file'
-            await notificationService.createFileUploadFailureNotification(user.id, fileName, error.message || 'Failed to complete multipart upload', 'multipart')
+            addToNotificationQueue({
+                user_id: user.id,
+                type: NotificationType.MULTIPART_UPLOAD_FAILED,
+                title: "Multipart upload failed",
+                message: `Multipart upload has been failed`,
+                is_read: false,
+                created_at: new Date(),
+                data: { fileName },
+                related_user_id: user.id,
+            })
         }
+
         return res.FailureResponse(c, 500, {
             message: "Failed to complete upload",
             error: error.message,
@@ -170,18 +212,35 @@ const abortUpload = async (c: Context) => {
 
         if (user?.id) {
             const fileName = key.split('/').pop() || 'Unknown file'
-            await notificationService.createFileUploadFailureNotification(
-                user.id,
-                fileName,
-                'Upload was cancelled by user',
-                'multipart'
-            )
+            addToNotificationQueue({
+                user_id: user.id,
+                type: NotificationType.MULTIPART_UPLOAD_FAILED,
+                title: "Multipart upload aborted",
+                message: `Multipart upload has been aborted`,
+                is_read: false,
+                created_at: new Date(),
+                data: { fileName },
+                related_user_id: user.id,
+            })
         }
         return res.SuccessResponse(c, 200, {
             message: "Upload aborted successfully",
             data: [],
         })
     } catch (error: any) {
+        if (user?.id) {
+            const fileName = key.split('/').pop() || 'Unknown file'
+            addToNotificationQueue({
+                user_id: user.id,
+                type: NotificationType.MULTIPART_UPLOAD_FAILED,
+                title: "Multipart upload failed",
+                message: `Multipart upload has been failed`,
+                is_read: false,
+                created_at: new Date(),
+                data: { fileName },
+                related_user_id: user.id,
+            })
+        }
         return res.FailureResponse(c, 500, {
             message: "Failed to abort upload",
             error: error.message,

@@ -18,7 +18,7 @@ export enum NotificationType {
 
 // Define the attributes interface
 export interface NotificationAttributes {
-    id: string;
+    id?: string;
     user_id: string;
     type: NotificationType;
     title: string;

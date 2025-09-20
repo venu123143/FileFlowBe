@@ -35,6 +35,7 @@
     "@socket.io/admin-ui": "^0.5.1",
     "@socket.io/bun-engine": "^0.0.2",
     "bcryptjs": "^3.0.2",
+    "bullmq": "^5.58.7",
     "dotenv": "^17.2.1",
     "hono": "^4.9.8",
     "hono-sessions": "^0.8.0",

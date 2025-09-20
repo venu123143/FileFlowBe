@@ -18,13 +18,3 @@ export enum AccessAction {
     PUBLIC_LINK_ACCESS = 'public_link_access',
     PUBLIC_LINK_DELETE = 'public_link_delete',
 }
-
-export enum NotificationType {
-    FILE_SHARED = 'file_shared',
-    FILE_UPDATED = 'file_updated',
-    STORAGE_QUOTA_WARNING = 'storage_quota_warning',
-    STORAGE_QUOTA_EXCEEDED = 'storage_quota_exceeded',
-    SHARE_EXPIRED = 'share_expired',
-    FILE_COMMENTED = 'file_commented',
-    PUBLIC_LINK_ACCESSED = 'public_link_accessed',
-}

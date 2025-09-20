@@ -1,7 +1,8 @@
 import { type Context } from "hono"
 import res from "@/utils/response"
-import notificationService from "@/services/notification.service"
+import notificationRepository from "@/repository/notification.repository"
 import type { IUserAttributes } from "@/models/User.model"
+import type { NotificationAttributes } from "@/models/Notification.model"
 
 const getUserNotifications = async (c: Context) => {
     try {
@@ -18,7 +19,7 @@ const getUserNotifications = async (c: Context) => {
 
         const { limit = 20, offset = 0, unreadOnly = false } = validatedQuery
 
-        const result = await notificationService.getUserNotifications(
+        const result = await notificationRepository.getUserNotifications(
             user.id,
             limit,
             offset,
@@ -51,7 +52,7 @@ const markNotificationAsRead = async (c: Context) => {
         const validatedParams = c.get('validatedParams') as { notificationId: string }
         const { notificationId } = validatedParams
 
-        const success = await notificationService.markAsRead(notificationId, user.id)
+        const success = await notificationRepository.markNotificationAsRead(notificationId, user.id)
 
         if (!success) {
             return res.FailureResponse(c, 404, {
@@ -78,7 +79,7 @@ const markAllNotificationsAsRead = async (c: Context) => {
             return res.FailureResponse(c, 400, { message: "User not found" })
         }
 
-        const updatedCount = await notificationService.markAllAsRead(user.id)
+        const updatedCount = await notificationRepository.markAllNotificationsAsRead(user.id)
 
         return res.SuccessResponse(c, 200, {
             message: "All notifications marked as read successfully",
@@ -99,7 +100,7 @@ const getUnreadNotificationsCount = async (c: Context) => {
             return res.FailureResponse(c, 400, { message: "User not found" })
         }
 
-        const count = await notificationService.getUnreadCount(user.id)
+        const count = await notificationRepository.getUnreadNotificationsCount(user.id)
 
         return res.SuccessResponse(c, 200, {
             message: "Unread count retrieved successfully",

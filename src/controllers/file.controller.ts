@@ -8,6 +8,8 @@ import type { IUserAttributes } from "@/models/User.model";
 import { ForeignKeyConstraintError, UniqueConstraintError, type Transaction } from "sequelize";
 import db from "@/config/database";
 import type { ShareAttributes } from "@/models/Share.model";
+import { addToNotificationQueue } from "@/core/notification-queue";
+import { NotificationType } from "@/models/Notification.model";
 
 
 const createFolder = async (c: Context) => {
@@ -161,8 +163,18 @@ const restoreFileOrFolder = async (c: Context) => {
     try {
         const user = c.get('user') as IUserAttributes;
         const fileId = c.req.param('id');
-        console.log("Restoring file/folder with ID:", fileId, "for user:", user.id);
-        await fileRepository.restoreFileOrFolder(fileId, user.id);
+        const restoredFile = await fileRepository.restoreFileOrFolder(fileId, user.id);
+
+        addToNotificationQueue({
+            user_id: user.id,
+            type: NotificationType.FILE_UPDATED,
+            title: "You restored a file/folder",
+            message: `File/folder has been restored successfully`,
+            is_read: false,
+            created_at: new Date(),
+            data: { restoredFile },
+            related_user_id: user.id,
+        })
         return res.SuccessResponse(c, 200, { message: "File/folder restored successfully", data: {} });
     } catch (error) {
         console.log(error);
@@ -176,6 +188,16 @@ const deleteFileOrFolder = async (c: Context) => {
         const fileId = c.req.param('id');
         const deletedFile = await fileRepository.deleteFileOrFolder(fileId, user.id);
 
+        addToNotificationQueue({
+            user_id: user.id,
+            type: NotificationType.FILE_DELETED,
+            title: "You deleted a file/folder",
+            message: `File/folder has been deleted successfully`,
+            is_read: false,
+            created_at: new Date(),
+            data: { deletedFile },
+            related_user_id: user.id,
+        })
         return res.SuccessResponse(c, 200, { message: "File/folder deleted successfully", data: { deletedFile } });
     } catch (error) {
         console.log(error);
@@ -189,6 +211,7 @@ const shareFileOrFolder = async (c: Context) => {
         const value = c.get<ShareFileBody>('validated');
         const user = c.get('user') as IUserAttributes;
         const fileId = c.req.param('id');
+
         const share: ShareAttributes = {
             file_id: fileId,
             shared_by_user_id: user.id,
@@ -198,6 +221,17 @@ const shareFileOrFolder = async (c: Context) => {
             expires_at: value.expires_at
         };
         const sharedFile = await fileRepository.shareFileOrFolder(share);
+
+        addToNotificationQueue({
+            user_id: value.shared_with_user_id,
+            type: NotificationType.FILE_SHARED,
+            title: `${user.display_name} shared a file with you`,
+            message: `File(s) have been shared successfully`,
+            is_read: false,
+            created_at: new Date(),
+            data: { sharedFile },
+            related_user_id: user.id,
+        })
 
         return res.SuccessResponse(c, 200, { message: "File/folder shared successfully", data: { sharedFile } });
     } catch (error) {
@@ -242,10 +276,18 @@ const getAllSharedFilesWithMe = async (c: Context) => {
 
 const emptyTrash = async (c: Context) => {
     try {
-        console.log("Emptying trash");
         const user = c.get('user') as IUserAttributes;
-        console.log("Emptying trash for user:", user.id);
         const deletedFiles = await fileRepository.emptyTrash(user.id);
+        addToNotificationQueue({
+            user_id: user.id,
+            type: NotificationType.FILE_DELETED,
+            title: "Trash emptied",
+            message: `Trash has been emptied successfully`,
+            is_read: false,
+            created_at: new Date(),
+            data: { deletedFiles },
+            related_user_id: user.id,
+        })
         return res.SuccessResponse(c, 200, { message: "Trash emptied successfully", data: { deletedFiles } });
     } catch (error) {
         console.log(error);
