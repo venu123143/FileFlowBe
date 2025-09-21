@@ -16,8 +16,8 @@ function formatFileSize(bytes: number): string {
  * Create a new notification and send it in real time.
  */
 async function createNotification(params: NotificationAttributes): Promise<Notification> {
-    const notification = await Notification.create(params);
-    await socketService.sendNotification(notification.user_id, notification);
+    const notification = await Notification.create(params, { returning: true, raw: true });
+    await socketService.sendNotification(notification.user_id, notification.toJSON());
     return notification;
 }
 

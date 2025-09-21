@@ -17,8 +17,7 @@ export class NotificationRouter {
         this.router.get('/',
             Middleware.authMiddleware,
             validateQuery(notificationValidation.getNotificationsValidation),
-            notificationController.getUserNotifications
-        );
+            notificationController.getUserNotifications);
 
         // Get unread notifications count
         this.router.get('/unread-count',

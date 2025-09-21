@@ -15,6 +15,7 @@ interface AuthenticatedSocket extends Socket {
 class SocketService {
     private io: Server | null = null;
     private notificationNamespace: Namespace | null = null;
+    private socket: Socket | null = null;
 
     public initialize(io: Server): void {
         this.io = io;
@@ -62,7 +63,7 @@ class SocketService {
     private setupNamespaceHandlers(namespace: Namespace): void {
         namespace.on('connection', (socket: AuthenticatedSocket) => {
             console.log(`User ${socket.user?.display_name} connected to notifications namespace with socket ${socket.id}`);
-           
+            this.socket = socket;
             socket.on('disconnect', () => {
                 console.log(`User ${socket.user?.id} disconnected from notifications namespace`);
             });
@@ -70,6 +71,7 @@ class SocketService {
     }
 
     public sendNotification(userId: string, notification: NotificationAttributes): void {
+        // this.socket?.to(userId).emit('notification:new', notification);
         if (this.notificationNamespace) {
             this.notificationNamespace.to(userId).emit('notification:new', notification);
         }

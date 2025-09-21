@@ -67,9 +67,9 @@ class RedisConnectionManager {
             this.isConnecting = false; // Connection ended
         });
 
-        this.client.on('ready', () => {
-            console.log('ioredis Client Ready (connected and authenticated)');
-        });
+        // this.client.on('ready', () => {
+        //     console.log('ioredis Client Ready (connected and authenticated)');
+        // });
     }
 
     public async connect() {
@@ -78,19 +78,16 @@ class RedisConnectionManager {
         }
 
         if (this.client!.status === 'ready') {
-            console.log('ioredis connection already ready');
             return this.client;
         }
 
         // If lazyConnect is true, we need to explicitly connect or send a command.
         // Ping is a good way to ensure a connection is established.
         try {
-            console.log('Attempting to connect to ioredis...');
             // ioredis connects on demand when lazyConnect is true and a command is sent.
             // Using .connect() is also an option, or simply await a .ping()
             await this.client!.connect(); // Explicitly connect the client
             await this.client!.ping(); // Send a simple command to ensure connection is live
-            console.log('ioredis connection established and ping successful.');
             return this.client;
         } catch (error: any) {
             LoggerService.loggerInstance.logAuditEvent("Redis Error", { userId: "system", action: "Trying to connect ioredis", details: error.message });
@@ -106,7 +103,6 @@ class RedisConnectionManager {
         }
 
         if (this.client) {
-            console.log('Disconnecting ioredis client...');
             await this.client.quit(); // Use quit for graceful shutdown
             this.client = null;
             this.isConnecting = false;
@@ -127,9 +123,7 @@ class RedisConnectionManager {
 
     // Graceful shutdown method
     public async shutdown(): Promise<void> {
-        console.log('Initiating graceful ioredis shutdown...');
         await this.disconnect();
-        console.log('ioredis connection closed gracefully');
     }
 }
 

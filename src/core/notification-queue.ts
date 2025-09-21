@@ -1,4 +1,4 @@
-import { Queue, Worker, QueueEvents } from 'bullmq';
+import { Queue, Worker, QueueEvents, type JobsOptions } from "bullmq";
 import { type NotificationAttributes } from '@/models/Notification.model';
 import config from "@/config/config";
 import notificationService from "@/services/notification.service"
@@ -6,40 +6,43 @@ import notificationService from "@/services/notification.service"
 interface NotificationQueue {
     notification: NotificationAttributes;
 }
+const QUEUE_NAME = "fileflow-notification-queue";
+// Shared Redis connection config
+const connection = {
+    url: config.REDIS_URL,
+};
+const defaultJobOptions: JobsOptions = {
+    attempts: 5,
+    backoff: {
+        type: "exponential",
+        delay: 5000, // retry after 5s, then grows exponentially
+    },
+    removeOnComplete: true,
+    removeOnFail: 10, // keep last 10 failed jobs for debugging
+    priority: 5,
+    lifo: false,
+};
 
 // Notification queue
-export const notificationQueue = new Queue<NotificationQueue>('fileflow-notification-queue', {
-    connection: {
-        url: config.REDIS_URL
-    },
-    defaultJobOptions: {
-        attempts: 5,
-        backoff: {
-            type: 'exponential',
-            delay: 5000
-        },
-        removeOnComplete: true,
-        removeOnFail: true,
-        priority: 5,
-        lifo: false
-    }
+export const notificationQueue = new Queue<NotificationQueue>(QUEUE_NAME, {
+    connection,
+    defaultJobOptions,
 });
 
+
 export const addToNotificationQueue = (notification: NotificationAttributes) => {
-    notificationQueue.add('notification', { notification });
+    return notificationQueue.add('notification', { notification });
 };
 
 // Worker for processing notifications
-const notificationWorker = new Worker<NotificationQueue>('fileflow-notification-queue',
+const notificationWorker = new Worker<NotificationQueue>(QUEUE_NAME,
     async (job) => {
         const { notification } = job.data;
-
         try {
             const startTime = Date.now();
             // Send real-time notification via socket
             await notificationService.createNotification(notification);
             const duration = Date.now() - startTime;
-            console.log(`Notification job ${job.id} (${notification.type}) completed in ${duration}ms`);
 
             return { success: true, duration };
 
@@ -49,19 +52,15 @@ const notificationWorker = new Worker<NotificationQueue>('fileflow-notification-
         }
     },
     {
-        connection: {
-            url: config.REDIS_URL
-        },
+        connection,
         concurrency: 5
     }
 );
 
 // Queue events
-const queueEvents = new QueueEvents('fileflow-notification-queue', {
-    connection: {
-        url: config.REDIS_URL
-    }
-});
+const queueEvents = new QueueEvents(QUEUE_NAME, { connection });
+// ✅ prevent MaxListenersExceededWarning
+queueEvents.setMaxListeners(1);
 
 // Event handlers
 queueEvents.on('completed', ({ jobId }) => {
