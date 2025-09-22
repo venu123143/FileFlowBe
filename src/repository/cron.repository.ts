@@ -1,11 +1,12 @@
 import db from "@/config/database"
 import { Op } from "sequelize";
 import constants from "@/global/constants";
+
 async function removeAllExpiredTokens() {
     const expirationTime = new Date();
     expirationTime.setDate(expirationTime.getDate() - constants.FILE_TRASH_EXPIRY_TIME);
 
-    const expiredTokens = await db.UserSession.findAll({
+    const count = await db.UserSession.destroy({
         where: {
             expires_at: {
                 [Op.lt]: expirationTime, // Expired before cutoff
@@ -13,17 +14,14 @@ async function removeAllExpiredTokens() {
         },
     });
 
-    for (const token of expiredTokens) {
-        await token.destroy();
-    }
-
-    return expiredTokens;
+    return count; // Returns number of deleted records
 }
+
 
 async function removeAllExpiredShares() {
     const now = new Date();
 
-    const expiredShares = await db.Share.findAll({
+    const count = await db.Share.destroy({
         where: {
             expires_at: {
                 [Op.lt]: now, // Expired already
@@ -31,13 +29,8 @@ async function removeAllExpiredShares() {
         },
     });
 
-    for (const share of expiredShares) {
-        await share.destroy();
-    }
-
-    return expiredShares;
+    return count; // Returns number of deleted records
 }
-
 
 /**
  * Recursively find all descendant file IDs of a parent folder
@@ -105,9 +98,26 @@ async function removeOldDeletedFiles() {
     return allToDelete;
 }
 
+async function removeOldReadNotifications() {
+    const cutoffDate = new Date();
+    cutoffDate.setDate(cutoffDate.getDate() - 30);
+
+    const result = await db.Notification.destroy({
+        where: {
+            created_at: {
+                [Op.lt]: cutoffDate,
+            },
+            is_read: true,
+        },
+    });
+
+    return result; // Returns count of deleted rows
+}
+
+// Add to export
 export default {
     removeAllExpiredTokens,
     removeAllExpiredShares,
     removeOldDeletedFiles,
-
+    removeOldReadNotifications,
 };

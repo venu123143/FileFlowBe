@@ -31,3 +31,9 @@ schedule.scheduleJob({ rule: "0 1 * * *", tz: "Asia/Kolkata" }, async () => {
     console.log(`[${getISTTime()}] Running cron: Removing files older than 30 days from trash`);
     await CronDatabase.removeOldDeletedFiles();
 });
+
+// 🕛 Daily cleanup of read notifications older than 30 days (2:00 AM IST)
+schedule.scheduleJob({ rule: "0 2 * * *", tz: "Asia/Kolkata" }, async () => {
+    console.log(`[${getISTTime()}] Running cron: Removing old read notifications`);
+    await CronDatabase.removeOldReadNotifications();
+});
