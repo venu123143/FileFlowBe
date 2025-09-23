@@ -1,11 +1,12 @@
 import { Server, Socket, Namespace } from 'socket.io';
 import jwt from '@/utils/jwt-token';
 import type { IUserAttributes } from '@/models/User.model';
+import { type ISessionData } from "@/types/hono";
+import { type NotificationAttributes } from '@/models';
 import redisConn from "@/config/redis.config";
 import redisConstants from "@/global/redis-constants";
 import authService from "@/services/user.service";
-import { type ISessionData } from "@/types/hono";
-import { type NotificationAttributes } from '@/models';
+import fileRepository from '@/repository/file.repository';
 interface AuthenticatedSocket extends Socket {
     user?: IUserAttributes;
     user_id?: string
@@ -64,6 +65,10 @@ class SocketService {
         namespace.on('connection', (socket: AuthenticatedSocket) => {
             console.log(`User ${socket.user?.display_name} connected to notifications namespace with socket ${socket.id}`);
             this.socket = socket;
+
+            socket.on("last_accessed", ({ file_id }: { file_id: string }) => {
+                fileRepository.updateLastAccessed(file_id, socket.user?.id as string);
+            });
             socket.on('disconnect', () => {
                 console.log(`User ${socket.user?.id} disconnected from notifications namespace`);
             });
