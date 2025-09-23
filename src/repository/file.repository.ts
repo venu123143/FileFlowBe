@@ -9,6 +9,10 @@ const createFolder = async (value: FileAttributes) => {
   return folder;
 }
 
+const updateLastAccessed = async (file_id: string, owner_id: string) => {
+  return await db.File.update({ last_accessed_at: new Date() }, { where: { id: file_id, owner_id: owner_id } })
+}
+
 const renameFolder = async (folderId: string, ownerId: string, newName: string) => {
   return await db.File.update({ name: newName }, { where: { id: folderId, owner_id: ownerId } });
 }
@@ -473,5 +477,6 @@ export default {
   getAllSharedFilesByMe,
   getAllSharedFilesWithMe,
   getAllSharedFilesSingleQuery,
-  emptyTrash
+  emptyTrash,
+  updateLastAccessed
 }
