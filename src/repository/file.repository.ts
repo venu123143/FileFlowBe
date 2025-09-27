@@ -1,6 +1,6 @@
 import db from "@/config/database"
 import { type FileAttributes, AccessLevel } from "@/models/File.model"
-import { Op, QueryTypes, type Transaction } from "sequelize";
+import { Op, QueryTypes, type Transaction, literal } from "sequelize";
 import { type FileSystemNode, type SharedFileSystemNode } from "@/types/file.types";
 import { type ShareAttributes } from "@/models/Share.model";
 
@@ -463,6 +463,37 @@ const emptyTrash = async (userId: string) => {
   return deletedFiles;
 };
 
+const getRecents = async (userId: string, page: number = 1, limit: number = 20) => {
+  const safePage = Number.isFinite(page) && page > 0 ? Math.trunc(page) : 1;
+  const safeLimit = Number.isFinite(limit) && limit > 0 ? Math.trunc(limit) : 20;
+  const offset = (safePage - 1) * safeLimit;
+
+  const { rows, count } = await db.File.findAndCountAll({
+    where: { owner_id: userId, deleted_at: null, [Op.and]: [literal('last_accessed_at IS NOT NULL')] },
+    order: [["last_accessed_at", "DESC"]],
+    attributes: [
+      'id',
+      'name',
+      'access_level',
+      'file_info',
+      'created_at',
+      'last_accessed_at'
+    ],
+    limit: safeLimit,
+    offset
+  });
+
+  return {
+    files: rows,
+    metadata: {
+      total: count,
+      page: safePage,
+      limit: safeLimit,
+      totalPages: Math.ceil(count / safeLimit)
+    }
+  };
+};
+
 export default {
   createFolder,
   renameFolder,
@@ -478,5 +509,6 @@ export default {
   getAllSharedFilesWithMe,
   getAllSharedFilesSingleQuery,
   emptyTrash,
-  updateLastAccessed
+  updateLastAccessed,
+  getRecents
 }

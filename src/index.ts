@@ -7,7 +7,7 @@ const app = new App();
 const socketEngine = app.getSocketEngine();
 const port = config.PORT || 3000;
 
-// Start Bun server99o
+// Start Bun server
 Bun.serve({
   port,
   idleTimeout: 30,

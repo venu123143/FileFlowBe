@@ -28,7 +28,7 @@ export interface FileAttributes {
     description?: string;
     tags: string[];
     metadata: Record<string, any> | null;
-    last_accessed_at?: Date;
+    last_accessed_at?: Date | null;
     deleted_at?: Date | null;
 }
 
@@ -47,7 +47,7 @@ export class File extends Model<FileAttributes, FileCreationAttributes> implemen
     declare description?: string;
     declare tags: string[];
     declare metadata: Record<string, any> | null;
-    declare last_accessed_at?: Date;
+    declare last_accessed_at?: Date | null;
 
     // Timestamps
     declare readonly created_at: Date;

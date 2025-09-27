@@ -27,6 +27,7 @@ export class FileRouter {
         this.router.get('/share/file/shared-with-me', FileController.getAllSharedFilesWithMe);
         this.router.get('/file/all', FileController.getFileSystemTree);
         this.router.get('/file/trash', FileController.getTrash);
+        this.router.get('/file/recents', FileController.getRecents);
         this.router.delete('/file/empty-trash', FileController.emptyTrash);
         this.router.delete('/file/:id', FileController.deleteFileOrFolder);
         this.router.post('/file/:id/restore', FileController.restoreFileOrFolder);

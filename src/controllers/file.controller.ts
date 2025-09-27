@@ -295,6 +295,20 @@ const emptyTrash = async (c: Context) => {
     }
 }
 
+const getRecents = async (c: Context) => {
+    try {
+        const user = c.get('user') as IUserAttributes;
+        const page = Number(c.req.query('page') ?? '1');
+        const limit = Number(c.req.query('limit') ?? '20');
+        const result = await fileRepository.getRecents(user.id, page, limit);
+        return res.SuccessResponse(c, 200, { message: "Recents retrieved successfully", data: result });
+    } catch (error) {
+        console.log(error);
+        return res.FailureResponse(c, 500, { message: "Internal server error" });
+    }
+}
+
+
 export default {
     createFolder,
     renameFolder,
@@ -308,5 +322,6 @@ export default {
     getAllSharedFiles,
     getAllSharedFilesByMe,
     getAllSharedFilesWithMe,
-    emptyTrash
+    emptyTrash,
+    getRecents
 };
