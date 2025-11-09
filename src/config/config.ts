@@ -16,8 +16,6 @@ const getEnvironment = (): Environment => {
 };
 
 
-
-
 interface Config {
     PORT: number;
     ENVIRONMENT: Environment,

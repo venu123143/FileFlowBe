@@ -13,6 +13,7 @@ import RedisConnectionManager from "@/config/redis.config";
 import winston from "@/core/logger";
 import "@/controllers/cron.controller";
 import SocketService from "@/services/socket.service";
+import session from "@/core/session";
 
 export class App {
     private readonly app: Hono;
@@ -41,6 +42,7 @@ export class App {
         this.app.use("*", logger());
         this.app.use("*", cors(corsOptions));
         this.app.use("*", secureHeaders());
+        this.app.use("*", session as any);
         this.app.use("*", csrfMiddleware);
         this.app.use("*", requestId());
         this.app.use("*", winston.createAuditMiddleware(winston.loggerInstance));

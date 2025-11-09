@@ -11,6 +11,7 @@ export interface IUserAttributes {
     email: string;
     role: UserRole;
     password_hash: string;
+    pin_hash?: string;
     display_name?: string;
     avatar_url?: string;
     storage_quota: number;
@@ -22,7 +23,7 @@ export interface IUserAttributes {
 }
 
 // Define the creation attributes (optional fields for creation)
-export interface UserCreationAttributes extends Optional<IUserAttributes, 'id' | 'storage_quota' | 'is_active' | 'email_verified' | 'two_factor_enabled' | 'preferences'> { }
+export interface UserCreationAttributes extends Optional<IUserAttributes, 'id' | 'storage_quota' | 'is_active' | 'email_verified' | 'two_factor_enabled' | 'preferences' | 'pin_hash'> { }
 
 // Define the User model class
 export class User extends Model<IUserAttributes, UserCreationAttributes> implements IUserAttributes {
@@ -30,6 +31,7 @@ export class User extends Model<IUserAttributes, UserCreationAttributes> impleme
     declare email: string;
     declare role: UserRole;
     declare password_hash: string;
+    declare pin_hash?: string;
     declare display_name?: string;
     declare avatar_url?: string;
     declare storage_quota: number;
@@ -70,6 +72,10 @@ export const UserModel = (sequelize: Sequelize) => {
             password_hash: {
                 type: DataTypes.TEXT,
                 allowNull: false,
+            },
+            pin_hash: {
+                type: DataTypes.TEXT,
+                allowNull: true,
             },
             display_name: {
                 type: DataTypes.STRING(100),

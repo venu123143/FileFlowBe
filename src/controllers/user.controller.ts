@@ -5,6 +5,7 @@ import userDtoValidation from "@/validation/user.validation";
 import userRepository from "@/repository/user.repository";
 import userService from "@/services/user.service";
 import type { IUserAttributes } from "@/models/User.model";
+import { setSessionData } from "@/core/session";
 
 
 /**
@@ -145,10 +146,118 @@ const logoutAll = async (c: Context) => {
     }
 }
 
+const verifyPin = async (c: Context) => {
+    try {
+        const user = c.get('user') as IUserAttributes;
+        if (!user) {
+            return res.FailureResponse(c, 401, { message: "User not authenticated." });
+        }
+
+        // Check if user has set a PIN
+        if (!user.pin_hash) {
+            return res.FailureResponse(c, 400, {
+                message: "PIN not set. Please set your PIN first."
+            });
+        }
+
+        type VerifyPinBody = InferSchemaType<typeof userDtoValidation.verifyPinValidation>;
+        const { pin } = c.get('validated') as VerifyPinBody;
+
+        // Verify the PIN
+        const isPinCorrect = await userService.verifyPin(user, pin);
+        if (!isPinCorrect) {
+            return res.FailureResponse(c, 400, { message: "Invalid PIN" });
+        }
+        // Get session from context (set by session middleware)
+        // The session middleware automatically reads from cookies and makes it available here
+        const session = c.get('session');
+        if (!session) {
+            return res.FailureResponse(c, 500, { message: "Session not available" });
+        }
+
+        // Create session data as a single JSON object
+        const sessionData = {
+            user_id: user.id,
+            email: user.email,
+            pin_verified: true,
+            verified_at: new Date().toISOString()
+        };
+
+        // Set session data - this will automatically save to cookie via hono-sessions
+        await setSessionData(session, 'pin_session', sessionData);
+
+        // The session middleware will automatically set the cookie in the response
+        // The cookie name is 'fileflow_session' as defined in session.ts
+
+        return res.SuccessResponse(c, 200, {
+            message: "PIN verified successfully. Session created.",
+            data: {
+                user_id: user.id,
+                email: user.email
+            }
+        });
+    } catch (error) {
+        console.log(error);
+        return res.FailureResponse(c, 500, { message: "Internal server error" });
+    }
+}
+
+const setPin = async (c: Context) => {
+    try {
+        const user = c.get('user') as IUserAttributes;
+        if (!user) {
+            return res.FailureResponse(c, 401, { message: "User not authenticated." });
+        }
+
+        type SetPinBody = InferSchemaType<typeof userDtoValidation.setPinValidation>;
+        const { pin } = c.get('validated') as SetPinBody;
+
+        const pinSet = await userService.setPin(user.id, pin);
+
+        if (!pinSet) {
+            return res.FailureResponse(c, 500, { message: "Failed to set PIN. Please try again." });
+        }
+
+        return res.SuccessResponse(c, 200, {
+            message: "PIN set successfully",
+            data: {}
+        });
+    } catch (error) {
+        return res.FailureResponse(c, 500, { message: "Internal server error" });
+    }
+}
+
+const changePin = async (c: Context) => {
+    try {
+        const user = c.get('user') as IUserAttributes;
+        if (!user) {
+            return res.FailureResponse(c, 401, { message: "User not authenticated." });
+        }
+        type ChangePinBody = InferSchemaType<typeof userDtoValidation.changePinValidation>;
+        const { old_pin, new_pin } = c.get('validated') as ChangePinBody;
+        const isPinCorrect = await userService.verifyPin(user, old_pin);
+        if (!isPinCorrect) {
+            return res.FailureResponse(c, 400, { message: "Invalid PIN" });
+        }
+        const pinChanged = await userService.setPin(user.id, new_pin);
+        if (!pinChanged) {
+            return res.FailureResponse(c, 500, { message: "Failed to change PIN. Please try again." });
+        }
+        return res.SuccessResponse(c, 200, { message: "PIN changed successfully", data: {} });
+    }
+    catch (error) {
+        console.log(error);
+        return res.FailureResponse(c, 500, { message: "Internal server error" });
+    }
+}
+
 export default {
     Signup,
     Login,
     getAllUsers,
     logout,
-    logoutAll
+    verifyPin,
+    logoutAll,
+    setPin,
+    changePin
 }

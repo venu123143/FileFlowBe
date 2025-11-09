@@ -7,6 +7,7 @@ import redisConn from "@/config/redis.config";
 import redisConstants from "@/global/redis-constants";
 import { type ISessionData } from "@/types/hono";
 import authService from "@/services/user.service";
+import { getValidPinSession } from "@/core/session";
 
 /**
  * Authentication middleware for protecting routes.
@@ -61,6 +62,52 @@ const authMiddleware: MiddlewareHandler = async (c: Context, next: Next) => {
     }
 };
 
+/**
+ * PIN Session Verification Middleware
+ * Verifies that the user has a valid PIN session (20 minutes expiry)
+ * This middleware should be used after authMiddleware and session middleware
+ */
+const pinSessionMiddleware: MiddlewareHandler = async (c: Context, next: Next) => {
+    try {
+        // Get session from context (set by session middleware)
+        // The session middleware automatically reads the 'fileflow_session' cookie
+        const session = c.get('session');
+
+        if (!session) {
+            return res.FailureResponse(c, 401, {
+                message: "Session not available. Please verify your PIN."
+            });
+        }
+
+        // Get valid PIN session (checks expiry automatically)
+        const pinSession = await getValidPinSession(session);
+
+        if (!pinSession) {
+            return res.FailureResponse(c, 401, {
+                message: "PIN not verified or session expired. Please verify your PIN to continue."
+            });
+        }
+
+        // Verify that the user in PIN session matches the authenticated user
+        const user = c.get('user');
+        if (user && pinSession.user_id !== user.id) {
+            return res.FailureResponse(c, 401, {
+                message: "PIN session user mismatch."
+            });
+        }
+
+        // PIN session is valid, proceed to next middleware/route
+        await next();
+    } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        return res.FailureResponse(c, 500, {
+            message: "Error verifying PIN session.",
+            error: errorMessage
+        });
+    }
+};
+
 export default {
     authMiddleware,
+    pinSessionMiddleware,
 };

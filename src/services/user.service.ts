@@ -89,9 +89,30 @@ const verifyPassword = async (plainPassword: string, hashedPassword: string): Pr
     return await bcryptjs.compare(plainPassword, hashedPassword);
 }
 
+// Generate a salt and Hash the PIN with the salt
+const hashPin = async (plainPin: string): Promise<string> => {
+    const salt = await bcryptjs.genSalt(constants.SALT_ROUNDS);
+    return await bcryptjs.hash(plainPin, salt);
+}
+
+const verifyPin = async (user: IUserAttributes, pin: string): Promise<boolean> => {
+    if (!user.pin_hash) {
+        return false;
+    }
+    return await bcryptjs.compare(pin, user.pin_hash);
+}
+
+const setPin = async (userId: string, pin: string): Promise<boolean> => {
+    const pinHash = await hashPin(pin);
+    return await userRepository.updatePin(userId, pinHash);
+}
+
 export default {
     generateSession,
     logout,
+    verifyPin,
+    setPin,
+    hashPin,
     logoutAllSessions,
     parseJson,
     isAccountLocked,

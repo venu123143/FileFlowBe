@@ -19,6 +19,9 @@ export class AuthRouter {
         this.router.post('/logout', AuthMiddleware.authMiddleware, AuthController.logout);
         this.router.post('/logout-all', AuthMiddleware.authMiddleware, AuthController.logoutAll);
         this.router.get('/user/all', AuthMiddleware.authMiddleware, validateQuery(userDtoValidation.getAllUsersValidation), AuthController.getAllUsers);
+        this.router.post('/user/verify-pin', AuthMiddleware.authMiddleware, validateBody(userDtoValidation.verifyPinValidation), AuthController.verifyPin);
+        this.router.post('/user/set-pin', AuthMiddleware.authMiddleware, validateBody(userDtoValidation.setPinValidation), AuthController.setPin);
+        this.router.put('/user/change-pin', AuthMiddleware.authMiddleware, validateBody(userDtoValidation.changePinValidation), AuthController.changePin);
     }
 
     public getRouter() {

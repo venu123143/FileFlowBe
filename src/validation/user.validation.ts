@@ -64,11 +64,67 @@ const getAllUsersValidation = Joi.object({
     search: Joi.string().max(255).trim().allow(""),
     is_active: Joi.boolean(),
     email_verified: Joi.boolean(),
-  });
+});
 
+const setPinValidation = Joi.object({
+    pin: Joi.string()
+        .length(4)
+        .pattern(/^\d+$/)
+        .required()
+        .messages({
+            "string.base": "Pin must be a text value",
+            "string.empty": "Pin is required",
+            "string.length": "Pin must be exactly 4 digits",
+            "string.pattern.base": "Pin must contain only digits",
+            "any.required": "Pin is required"
+        }),
+});
+
+const verifyPinValidation = Joi.object({
+    pin: Joi.string()
+        .length(4)
+        .pattern(/^\d+$/)
+        .required()
+        .messages({
+            "string.base": "Pin must be a text value",
+            "string.empty": "Pin is required",
+            "string.length": "Pin must be exactly 4 digits",
+            "string.pattern.base": "Pin must contain only digits",
+            "any.required": "Pin is required"
+        }),
+});
+
+const changePinValidation = Joi.object({
+    old_pin: Joi.string()
+        .length(4)
+        .pattern(/^\d+$/)
+        .required()
+        .messages({
+            "string.base": "Old pin must be a text value",
+            "string.empty": "Old pin is required",
+            "string.length": "Old pin must be exactly 4 digits",
+            "string.pattern.base": "Old pin must contain only digits",
+            "any.required": "Old pin is required"
+        }),
+
+    new_pin: Joi.string()
+        .length(4)
+        .pattern(/^\d+$/)
+        .required()
+        .messages({
+            "string.base": "New pin must be a text value",
+            "string.empty": "New pin is required",
+            "string.length": "New pin must be exactly 4 digits",
+            "string.pattern.base": "New pin must contain only digits",
+            "any.required": "New pin is required"
+        }),
+});
 
 export default {
     loginValidation,
     signupValidation,
-    getAllUsersValidation
+    getAllUsersValidation,
+    setPinValidation,
+    verifyPinValidation,
+    changePinValidation
 }

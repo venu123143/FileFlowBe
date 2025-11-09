@@ -79,6 +79,14 @@ const getAllUsers = async (validated: GetAllUsersParams, user_id: string) => {
     };
 };
 
+const updatePin = async (user_id: string, pin_hash: string) => {
+    const [affectedRows] = await db.User.update(
+        { pin_hash },
+        { where: { id: user_id } }
+    );
+    return affectedRows > 0;
+};
+
 
 export default {
     saveSession,
@@ -87,5 +95,6 @@ export default {
     findUserByEmail,
     deactivateSessionByToken,
     createUser,
-    getAllUsers
+    getAllUsers,
+    updatePin
 }
