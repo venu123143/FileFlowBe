@@ -83,7 +83,7 @@ const pinSessionMiddleware: MiddlewareHandler = async (c: Context, next: Next) =
         const pinSession = await getValidPinSession(session);
 
         if (!pinSession) {
-            return res.FailureResponse(c, 401, {
+            return res.FailureResponse(c, 403, {
                 message: "PIN not verified or session expired. Please verify your PIN to continue."
             });
         }

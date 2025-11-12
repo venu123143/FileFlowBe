@@ -5,7 +5,7 @@ import userDtoValidation from "@/validation/user.validation";
 import userRepository from "@/repository/user.repository";
 import userService from "@/services/user.service";
 import type { IUserAttributes } from "@/models/User.model";
-import { setSessionData } from "@/core/session";
+import { getSessionData, getValidPinSession, setSessionData, type PinSessionData } from "@/core/session";
 
 
 /**
@@ -251,6 +251,27 @@ const changePin = async (c: Context) => {
     }
 }
 
+const getSession = async (c: Context) => {
+    try {
+        const user = c.get('user') as IUserAttributes;
+        if (!user) {
+            return res.FailureResponse(c, 401, { message: "User not authenticated." });
+        }
+        const session = c.get('session');
+        if (!session) {
+            return res.FailureResponse(c, 401, { message: "Session not available." });
+        }
+        const pinSession = await getValidPinSession(session);
+        if (!pinSession) {
+            return res.FailureResponse(c, 403, { message: "PIN not verified or session expired. Please verify your PIN to continue." });
+        }
+        return res.SuccessResponse(c, 200, { message: "Session retrieved successfully", data: { user: user, session: pinSession } });
+    } catch (error) {
+        return res.FailureResponse(c, 500, { message: "Internal server error", error: error instanceof Error ? error.message : "Unknown error" });
+    }
+}
+
+
 export default {
     Signup,
     Login,
@@ -259,5 +280,6 @@ export default {
     verifyPin,
     logoutAll,
     setPin,
-    changePin
+    changePin,
+    getSession
 }

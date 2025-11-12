@@ -3,7 +3,6 @@ import AuthMiddleware from "@/middleware/auth.middleware";
 import FileController from "@/controllers/file.controller";
 import { validateBody } from "@/utils/validation";
 import fileDtoValidation from "@/validation/file.validation";
-import session from "@/core/session";
 
 export class FileRouter {
     /** Each router owns its own Hono instance */
@@ -29,7 +28,7 @@ export class FileRouter {
         this.router.get('/file/all', FileController.getFileSystemTree);
         this.router.get('/file/trash', FileController.getTrash);
         // Apply session middleware before pinSessionMiddleware for /file/recents route
-        this.router.get('/file/recents', AuthMiddleware.pinSessionMiddleware, FileController.getRecents);
+        this.router.get('/file/recents', FileController.getRecents);
         this.router.delete('/file/empty-trash', FileController.emptyTrash);
         this.router.delete('/file/:id', FileController.deleteFileOrFolder);
         this.router.post('/file/:id/restore', FileController.restoreFileOrFolder);
