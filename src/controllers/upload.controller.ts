@@ -39,7 +39,7 @@ const uploadFile = async (c: Context) => {
         })
 
     } catch (error: any) {
-        return res.FailureResponse(c, 500, { message: "Internal server error" })
+        return res.FailureResponse(c, 500, { message: "Internal server error", error: error.message })
     }
 }
 

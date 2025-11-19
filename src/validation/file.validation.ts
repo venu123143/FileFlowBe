@@ -158,7 +158,7 @@ const createFileValidation = Joi.object({
         }),
     access_level: Joi.string()
         .valid(...Object.values(AccessLevel))
-        .default(AccessLevel.PRIVATE)
+        .default(AccessLevel.PROTECTED)
         .messages({
             "any.only": "Access level must be one of 'public', 'private', or 'protected'."
         }),
