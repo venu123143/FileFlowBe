@@ -32,6 +32,7 @@ export class FileRouter {
         this.router.delete('/file/empty-trash', FileController.emptyTrash);
         this.router.delete('/file/:id', FileController.deleteFileOrFolder);
         this.router.post('/file/:id/restore', FileController.restoreFileOrFolder);
+        this.router.patch('/file/:id/update-access-level', validateBody(fileDtoValidation.updateFileAccessLevelValidation), FileController.updateFileAccessLevel);
     }
 
     public getRouter() {

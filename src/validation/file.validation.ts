@@ -210,6 +210,15 @@ const shareFileValidation = Joi.object({
         })
 });
 
+const updateFileAccessLevelValidation = Joi.object({
+    access_level: Joi.string()
+        .valid(...Object.values(AccessLevel))
+        .required()
+        .messages({
+            "any.only": "Access level must be one of 'public', 'private', or 'protected'."
+        })
+});
+
 export default {
     createFolderValidation,
     updateFolderValidation,
@@ -217,4 +226,5 @@ export default {
     moveFileValidation,
     createFileValidation,
     shareFileValidation,
+    updateFileAccessLevelValidation,
 };

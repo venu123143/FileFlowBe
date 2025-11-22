@@ -494,6 +494,12 @@ const getRecents = async (userId: string, page: number = 1, limit: number = 20) 
   };
 };
 
+// Update the file's access level, you can only update the access level of the file if you are the owner of the file.
+const updateFileAccessLevel = async (fileId: string, userId: string, accessLevel: AccessLevel) => {
+  const file = await db.File.update({ access_level: accessLevel }, { where: { id: fileId, owner_id: userId } });
+  return file;
+};
+
 export default {
   createFolder,
   renameFolder,
@@ -510,5 +516,6 @@ export default {
   getAllSharedFilesSingleQuery,
   emptyTrash,
   updateLastAccessed,
-  getRecents
+  getRecents,
+  updateFileAccessLevel
 }
