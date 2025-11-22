@@ -3,6 +3,7 @@ import { AuthRouter } from "@/routes/user.routes";
 import { FileRouter } from "@/routes/file.routes";
 import { UploadRouter } from "@/routes/upload.routes";
 import { NotificationRouter } from "@/routes/notification.routes";
+import { ApiTokenRouter } from "@/routes/api-token.routes";
 
 export class MainRouter {
     private readonly router: Hono;
@@ -17,6 +18,7 @@ export class MainRouter {
         this.router.route("/file-flow", new FileRouter().getRouter());
         this.router.route("/upload", new UploadRouter().getRouter());
         this.router.route("/notification", new NotificationRouter().getRouter());
+        this.router.route("/api-token", new ApiTokenRouter().getRouter());
     }
 
     /** Return the configured Hono instance */

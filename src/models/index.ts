@@ -10,6 +10,7 @@ export * from './AccessLog.model';
 export * from './Favorite.model';
 export * from './Notification.model';
 export * from './UserSession.model';
+export * from './ApiToken.model';
 
 // Import all model functions
 import { UserModel } from './User.model';
@@ -21,6 +22,7 @@ import { AccessLogModel } from './AccessLog.model';
 import { FavoriteModel } from './Favorite.model';
 import { NotificationModel } from './Notification.model';
 import { UserSessionModel } from './UserSession.model';
+import { ApiTokenModel } from './ApiToken.model';
 
 // Function to initialize all models with associations
 export const initializeModels = (sequelize: Sequelize) => {
@@ -34,6 +36,8 @@ export const initializeModels = (sequelize: Sequelize) => {
     const Favorite = FavoriteModel(sequelize);
     const Notification = NotificationModel(sequelize);
     const UserSession = UserSessionModel(sequelize);
+    const ApiToken = ApiTokenModel(sequelize);
+
     // Define associations
     // User associations
     User.hasMany(File, { foreignKey: 'owner_id', as: 'ownedFiles' });
@@ -47,6 +51,8 @@ export const initializeModels = (sequelize: Sequelize) => {
     User.hasMany(Notification, { foreignKey: 'user_id', as: 'notifications' });
     User.hasMany(Notification, { foreignKey: 'related_user_id', as: 'relatedNotifications' });
     User.hasMany(UserSession, { foreignKey: 'user_id', as: 'sessions' });
+    User.hasMany(ApiToken, { foreignKey: 'user_id', as: 'apiTokens' });
+
     // File associations
     File.belongsTo(User, { foreignKey: 'owner_id', as: 'owner' });
     File.belongsTo(User, { foreignKey: 'deleted_by_user_id', as: 'deletedBy' });
@@ -83,6 +89,9 @@ export const initializeModels = (sequelize: Sequelize) => {
     Notification.belongsTo(User, { foreignKey: 'related_user_id', as: 'relatedUser' });
     Notification.belongsTo(File, { foreignKey: 'file_id', as: 'file' });
 
+    // ApiToken associations
+    ApiToken.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
+
     return {
         User,
         File,
@@ -93,5 +102,7 @@ export const initializeModels = (sequelize: Sequelize) => {
         Favorite,
         Notification,
         UserSession,
+        ApiToken,
     };
 };
+

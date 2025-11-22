@@ -12,7 +12,7 @@ export interface IUserAttributes {
     role: UserRole;
     password_hash: string;
     pin_hash?: string;
-    display_name?: string;
+    display_name: string;
     avatar_url?: string;
     storage_quota: number;
     last_login?: Date;
@@ -32,7 +32,7 @@ export class User extends Model<IUserAttributes, UserCreationAttributes> impleme
     declare role: UserRole;
     declare password_hash: string;
     declare pin_hash?: string;
-    declare display_name?: string;
+    declare display_name: string;
     declare avatar_url?: string;
     declare storage_quota: number;
     declare last_login?: Date;
