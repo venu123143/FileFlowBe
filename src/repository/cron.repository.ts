@@ -1,6 +1,7 @@
 import db from "@/config/database"
 import { Op } from "sequelize";
 import constants from "@/global/constants";
+import s3Service from "@/config/s3.config";
 
 async function removeAllExpiredTokens() {
     const expirationTime = new Date();
@@ -61,7 +62,6 @@ async function removeOldDeletedFiles() {
     const cutoffDate = new Date();
     cutoffDate.setDate(cutoffDate.getDate() - constants.FILE_TRASH_EXPIRY_TIME);
 
-    // Find expired "trashed" files/folders
     const expiredFiles = await db.File.findAll({
         where: {
             deleted_at: {
@@ -76,23 +76,36 @@ async function removeOldDeletedFiles() {
 
     let allToDelete: string[] = expiredFiles.map(f => f.id);
 
-    // Fetch children recursively
-    for (const file of expiredFiles) {
-        const childIds = await getAllChildFileIds([file.id]);
-        allToDelete = [...allToDelete, ...childIds];
+    // 🚀 Single batched call instead of loop
+    const childIds = await getAllChildFileIds(allToDelete);
+    allToDelete = [...new Set([...allToDelete, ...childIds])]; // Dedupe in one step
+
+    const filesToDelete = await db.File.findAll({
+        where: {
+            id: {
+                [Op.in]: allToDelete,
+            },
+            is_folder: false,
+        },
+        attributes: ["file_info"],
+        raw: true,
+    });
+
+    const s3Keys = filesToDelete
+        .map(f => f.file_info?.storage_path)
+        .filter(Boolean) as string[];
+
+    if (s3Keys.length) {
+        await s3Service.deleteFiles(s3Keys);
     }
 
-    // Remove duplicates
-    allToDelete = [...new Set(allToDelete)];
-
-    // Hard delete (skip paranoid)
     await db.File.destroy({
         where: {
             id: {
                 [Op.in]: allToDelete,
             },
         },
-        force: true, // ensures permanent delete
+        force: true,
     });
 
     return allToDelete;
