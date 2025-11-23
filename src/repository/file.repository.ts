@@ -128,8 +128,10 @@ const shareFileOrFolder = async (share: ShareAttributes) => {
   return file;
 };
 
+
+
 /**
- * Get all files shared with the current user (files others shared with me)
+ * Get ALL shared files (both files shared BY me and files shared WITH me)
  */
 const getAllSharedFiles = async (userId: string): Promise<SharedFileSystemNode[]> => {
   const query = `
@@ -152,6 +154,18 @@ const getAllSharedFiles = async (userId: string): Promise<SharedFileSystemNode[]
           'share_id', s.id,
           'shared_by_user_id', s.shared_by_user_id,
           'shared_with_user_id', s.shared_with_user_id,
+          'shared_by_user', JSON_BUILD_OBJECT(
+            'id', u_by.id,
+            'email', u_by.email,
+            'display_name', u_by.display_name,
+            'avatar_url', u_by.avatar_url
+          ),
+          'shared_with_user', JSON_BUILD_OBJECT(
+            'id', u_with.id,
+            'email', u_with.email,
+            'display_name', u_with.display_name,
+            'avatar_url', u_with.avatar_url
+          ),
           'permission_level', s.permission_level,
           'share_message', s.message,
           'expires_at', s.expires_at,
@@ -165,7 +179,9 @@ const getAllSharedFiles = async (userId: string): Promise<SharedFileSystemNode[]
       ) as shared_files
     FROM shares s
     INNER JOIN files f ON s.file_id = f.id
-    WHERE s.shared_with_user_id = :userId
+    LEFT JOIN users u_by ON s.shared_by_user_id = u_by.id
+    LEFT JOIN users u_with ON s.shared_with_user_id = u_with.id
+    WHERE (s.shared_with_user_id = :userId OR s.shared_by_user_id = :userId)
       AND f.deleted_at IS NULL
       AND (s.expires_at IS NULL OR s.expires_at > NOW());
   `;
@@ -177,7 +193,9 @@ const getAllSharedFiles = async (userId: string): Promise<SharedFileSystemNode[]
 
   return result[0][0].shared_files ? result[0][0].shared_files as SharedFileSystemNode[] : [];
 };
-
+/**
+ * Get all files shared by the current user (files I shared with others)
+ */
 /**
  * Get all files shared by the current user (files I shared with others)
  */
@@ -202,6 +220,18 @@ const getAllSharedFilesByMe = async (userId: string): Promise<SharedFileSystemNo
           'share_id', s.id,
           'shared_by_user_id', s.shared_by_user_id,
           'shared_with_user_id', s.shared_with_user_id,
+          'shared_by_user', JSON_BUILD_OBJECT(
+            'id', u_by.id,
+            'email', u_by.email,
+            'display_name', u_by.display_name,
+            'avatar_url', u_by.avatar_url
+          ),
+          'shared_with_user', JSON_BUILD_OBJECT(
+            'id', u_with.id,
+            'email', u_with.email,
+            'display_name', u_with.display_name,
+            'avatar_url', u_with.avatar_url
+          ),
           'permission_level', s.permission_level,
           'share_message', s.message,
           'expires_at', s.expires_at,
@@ -215,6 +245,8 @@ const getAllSharedFilesByMe = async (userId: string): Promise<SharedFileSystemNo
       ) as shared_files
     FROM shares s
     INNER JOIN files f ON s.file_id = f.id
+    LEFT JOIN users u_by ON s.shared_by_user_id = u_by.id
+    LEFT JOIN users u_with ON s.shared_with_user_id = u_with.id
     WHERE s.shared_by_user_id = :userId
       AND f.deleted_at IS NULL
       AND (s.expires_at IS NULL OR s.expires_at > NOW());
@@ -228,10 +260,13 @@ const getAllSharedFilesByMe = async (userId: string): Promise<SharedFileSystemNo
   return result[0][0].shared_files ? result[0][0].shared_files as SharedFileSystemNode[] : [];
 };
 
+/**
+ * Get all files shared with the current user (files others shared with me)
+ */
 const getAllSharedFilesWithMe = async (userId: string): Promise<SharedFileSystemNode[]> => {
   const query = `
     WITH RECURSIVE shared_files_recursive AS (
-      -- Base case: files/folders I shared
+      -- Base case: files/folders shared with me
       SELECT DISTINCT
         f.id, f.owner_id, f.parent_id, f.name, f.is_folder, f.access_level,
         f.file_info, f.description, f.tags, f.metadata, f.last_accessed_at,
@@ -239,10 +274,16 @@ const getAllSharedFilesWithMe = async (userId: string): Promise<SharedFileSystem
         s.id as share_id, s.shared_by_user_id, s.shared_with_user_id,
         s.permission_level, s.message as share_message, s.expires_at,
         s.created_at as share_created_at,
+        u_by.id as shared_by_id, u_by.email as shared_by_email, 
+        u_by.display_name as shared_by_display_name, u_by.avatar_url as shared_by_avatar_url,
+        u_with.id as shared_with_id, u_with.email as shared_with_email,
+        u_with.display_name as shared_with_display_name, u_with.avatar_url as shared_with_avatar_url,
         0 as depth
       FROM shares s
       INNER JOIN files f ON s.file_id = f.id
-      WHERE s.shared_by_user_id = :userId
+      LEFT JOIN users u_by ON s.shared_by_user_id = u_by.id
+      LEFT JOIN users u_with ON s.shared_with_user_id = u_with.id
+      WHERE s.shared_with_user_id = :userId
         AND f.deleted_at IS NULL
         AND (s.expires_at IS NULL OR s.expires_at > NOW())
       
@@ -256,6 +297,8 @@ const getAllSharedFilesWithMe = async (userId: string): Promise<SharedFileSystem
         sfr.share_id, sfr.shared_by_user_id, sfr.shared_with_user_id,
         sfr.permission_level, sfr.share_message, sfr.expires_at,
         sfr.share_created_at,
+        sfr.shared_by_id, sfr.shared_by_email, sfr.shared_by_display_name, sfr.shared_by_avatar_url,
+        sfr.shared_with_id, sfr.shared_with_email, sfr.shared_with_display_name, sfr.shared_with_avatar_url,
         sfr.depth + 1
       FROM shared_files_recursive sfr
       INNER JOIN files f ON f.parent_id = sfr.id
@@ -282,6 +325,18 @@ const getAllSharedFilesWithMe = async (userId: string): Promise<SharedFileSystem
           'share_id', sfr.share_id,
           'shared_by_user_id', sfr.shared_by_user_id,
           'shared_with_user_id', sfr.shared_with_user_id,
+          'shared_by_user', JSON_BUILD_OBJECT(
+            'id', sfr.shared_by_id,
+            'email', sfr.shared_by_email,
+            'display_name', sfr.shared_by_display_name,
+            'avatar_url', sfr.shared_by_avatar_url
+          ),
+          'shared_with_user', JSON_BUILD_OBJECT(
+            'id', sfr.shared_with_id,
+            'email', sfr.shared_with_email,
+            'display_name', sfr.shared_with_display_name,
+            'avatar_url', sfr.shared_with_avatar_url
+          ),
           'permission_level', sfr.permission_level,
           'share_message', sfr.share_message,
           'expires_at', sfr.expires_at,
@@ -304,7 +359,6 @@ const getAllSharedFilesWithMe = async (userId: string): Promise<SharedFileSystem
 
   return result[0][0].shared_files ? result[0][0].shared_files as SharedFileSystemNode[] : [];
 };
-
 
 /**
  * Alternative implementation for getAllSharedFiles using a single query

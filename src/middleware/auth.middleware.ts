@@ -12,7 +12,7 @@ import crypto from "crypto";
 
 
 
-const verifyBearerToken = async (c: Context, token: string) => {
+const verifyBearerToken = async (c: Context, token: string, next: Next) => {
     try {
         const jwt_decode = jwt.verifyJwtToken(token);
 
@@ -37,6 +37,7 @@ const verifyBearerToken = async (c: Context, token: string) => {
         }
         // Attach the user object to the context for downstream handlers
         c.set("user", find_user);
+        await next();
     } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error);
         return res.FailureResponse(c, 401, { message: "Login expired.", error: errorMessage });
@@ -44,7 +45,7 @@ const verifyBearerToken = async (c: Context, token: string) => {
 }
 
 
-const verifyApiToken = async (c: Context, token: string) => {
+const verifyApiToken = async (c: Context, token: string, next: Next) => {
     try {
         const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
 
@@ -74,6 +75,8 @@ const verifyApiToken = async (c: Context, token: string) => {
         }
 
         c.set("user", user);
+        await next();
+
     } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error);
         return res.FailureResponse(c, 401, { message: "Invalid API token.", error: errorMessage });
@@ -102,11 +105,9 @@ const authMiddleware: MiddlewareHandler = async (c: Context, next: Next) => {
 
     // Check if token is JWT (contains dots)
     if (token.includes('.')) {
-        await verifyBearerToken(c, token);
-        await next();
+        return await verifyBearerToken(c, token, next);
     } else {
-        await verifyApiToken(c, token);
-        await next();
+        return await verifyApiToken(c, token, next);
     }
 };
 
