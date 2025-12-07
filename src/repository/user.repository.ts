@@ -12,7 +12,7 @@ interface GetAllUsersParams {
 
 const saveSession = async (login_details: IUserSessionAttributes) => {
     await db.User.update({ last_login: new Date() }, { where: { id: login_details.user_id } });
-    return await db.UserSession.create(login_details);
+    // return await db.UserSession.create(login_details);
 }
 
 const deleteSessionByToken = async (session_token: string) => {

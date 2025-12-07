@@ -5,8 +5,6 @@ import jwt from "@/utils/jwt-token";
 import db from "@/config/database";
 import redisConn from "@/config/redis.config";
 import redisConstants from "@/global/redis-constants";
-import { type ISessionData } from "@/types/hono";
-import authService from "@/services/user.service";
 import { getValidPinSession } from "@/core/session";
 import crypto from "crypto";
 
@@ -16,25 +14,21 @@ const verifyBearerToken = async (c: Context, token: string, next: Next) => {
     try {
         const jwt_decode = jwt.verifyJwtToken(token);
 
-        // 2️⃣ Check Redis session
+        // Check if access token exists in Redis (fast validation)
         const client = redisConn.getClient();
-        const sessionKey = `${redisConstants.USER_SESSION_PREFIX}${jwt_decode.id}:${token}`;
-        const sessionData = await client.get(sessionKey);
+        const redisKey = `${redisConstants.ACCESS_TOKEN_PREFIX}${jwt_decode.id}:${token}`;
+        const tokenData = await client.get(redisKey);
 
-        if (!sessionData) {
+        if (!tokenData) {
             return res.FailureResponse(c, 401, { message: "Session expired or invalid." });
         }
 
-        const { login_details } = authService.parseJson<ISessionData>(sessionData);
-
-        // Ensure the token matches the stored session
-        if (login_details.session_token !== token || !login_details.is_active) {
-            return res.FailureResponse(c, 401, { message: "Invalid or inactive session." });
-        }
+        // Verify user exists in database
         const find_user = await db.User.findOne({ where: { id: jwt_decode.id }, raw: true });
         if (!find_user) {
             return res.FailureResponse(c, 401, { message: "Login expired." });
         }
+
         // Attach the user object to the context for downstream handlers
         c.set("user", find_user);
         await next();

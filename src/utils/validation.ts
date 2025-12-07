@@ -10,8 +10,14 @@ export function validateBody<T extends ObjectSchema>(schema: T) {
             const body = await c.req.json();
             const { value: cleaned, error } = schema.validate(body, { abortEarly: false, stripUnknown: true });
             if (error) {
+                const formattedErrors: Record<string, string> = {};
+
+                error.details.forEach((err) => {
+                    const key = err.path.join('.') || 'unknown';
+                    formattedErrors[key] = err.message;
+                });
                 return res.FailureResponse(c, 422, {
-                    errors: error.details.map((d) => d.message),
+                    errors: formattedErrors,
                     message: 'Validation failed',
                 })
             }

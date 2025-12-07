@@ -11,6 +11,7 @@ export * from './Favorite.model';
 export * from './Notification.model';
 export * from './UserSession.model';
 export * from './ApiToken.model';
+export * from './RefreshToken.model';
 
 // Import all model functions
 import { UserModel } from './User.model';
@@ -23,6 +24,7 @@ import { FavoriteModel } from './Favorite.model';
 import { NotificationModel } from './Notification.model';
 import { UserSessionModel } from './UserSession.model';
 import { ApiTokenModel } from './ApiToken.model';
+import { RefreshTokenModel } from './RefreshToken.model';
 
 // Function to initialize all models with associations
 export const initializeModels = (sequelize: Sequelize) => {
@@ -37,6 +39,7 @@ export const initializeModels = (sequelize: Sequelize) => {
     const Notification = NotificationModel(sequelize);
     const UserSession = UserSessionModel(sequelize);
     const ApiToken = ApiTokenModel(sequelize);
+    const RefreshToken = RefreshTokenModel(sequelize);
 
     // Define associations
     // User associations
@@ -52,6 +55,7 @@ export const initializeModels = (sequelize: Sequelize) => {
     User.hasMany(Notification, { foreignKey: 'related_user_id', as: 'relatedNotifications' });
     User.hasMany(UserSession, { foreignKey: 'user_id', as: 'sessions' });
     User.hasMany(ApiToken, { foreignKey: 'user_id', as: 'apiTokens' });
+    User.hasMany(RefreshToken, { foreignKey: 'user_id', as: 'refreshTokens' });
 
     // File associations
     File.belongsTo(User, { foreignKey: 'owner_id', as: 'owner' });
@@ -92,6 +96,9 @@ export const initializeModels = (sequelize: Sequelize) => {
     // ApiToken associations
     ApiToken.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
 
+    // RefreshToken associations
+    RefreshToken.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
+
     return {
         User,
         File,
@@ -103,6 +110,7 @@ export const initializeModels = (sequelize: Sequelize) => {
         Notification,
         UserSession,
         ApiToken,
+        RefreshToken,
     };
 };
 

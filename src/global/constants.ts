@@ -1,9 +1,9 @@
 
 
-
 const OTP_VALID_DURATION = 10 * 60 * 1000; // 10 MINS in milliseconds
 const RESEND_COOLDOWN_MINUTES = 1; // one minuite
-const TOKEN_EXPIRY_TIME = 360 * 24 * 60 * 60; // 365 DAYS in seconds
+const ACCESS_TOKEN_EXPIRY_TIME = 15 * 60; // 15 MINUTES in seconds
+const REFRESH_TOKEN_EXPIRY_TIME = 30 * 24 * 60 * 60; // 30 DAYS in seconds
 const INVITATION_EXPIRY_TIME = 30 * 24 * 60 * 60; // 30 DAYS in seconds
 const VERIFY_EMAIL_EXPIRY_TIME = 7 * 24 * 60 * 60; // 7 DAYS in seconds
 const SALT_ROUNDS = 10;
@@ -26,7 +26,8 @@ export default {
     SALT_ROUNDS,
     MAX_FILE_UPLOAD,
     MAX_CPU_USAGE,
-    TOKEN_EXPIRY_TIME,
+    ACCESS_TOKEN_EXPIRY_TIME,
+    REFRESH_TOKEN_EXPIRY_TIME,
     VERIFY_EMAIL_EXPIRY_TIME,
     OTP_VALID_DURATION,
     MAX_PAGINATION_LIMIT,
@@ -38,3 +39,4 @@ export default {
     SHARE_EXPIRY_TIME,
     PIN_SESSION_DURATION_MS,
 }
+
