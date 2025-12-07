@@ -19,7 +19,10 @@ const getEnvironment = (): Environment => {
 interface Config {
     PORT: number;
     ENVIRONMENT: Environment,
-    JWT_SECRET: string;
+    JWT_REFRESH_SECRET: string;
+    REFRESH_TOKEN_HASH_SECRET: string;
+    ACCESS_TOKEN_EXPIRY: string;
+    REFRESH_TOKEN_EXPIRY: number;
     SESSION_SECRET: string;
     OTP_SECRET_KEY: string;
     REDIS_URL: string;
@@ -58,7 +61,10 @@ interface Config {
 const config: Config = {
     PORT: parseInt(process.env.PORT || '3000'),
     ENVIRONMENT: getEnvironment(),
-    JWT_SECRET: process.env.JWT_SECRET!,
+    JWT_REFRESH_SECRET: process.env.JWT_REFRESH_SECRET!,
+    ACCESS_TOKEN_EXPIRY: process.env.ACCESS_TOKEN_EXPIRY || '15m',
+    REFRESH_TOKEN_EXPIRY: parseInt(process.env.REFRESH_TOKEN_EXPIRY || String(60 * 60 * 24 * 30)), // 30 days in seconds
+    REFRESH_TOKEN_HASH_SECRET: process.env.REFRESH_TOKEN_HASH_SECRET!,
     SESSION_SECRET: process.env.SESSION_SECRET!,
     OTP_SECRET_KEY: process.env.OTP_SECRET_KEY!,
     REDIS_URL: process.env.REDIS_URL || 'redis://localhost:6379',

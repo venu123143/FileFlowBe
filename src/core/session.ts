@@ -16,7 +16,6 @@ import constants from '@/global/constants';
  *   Cons: Limited by cookie size (~4KB), all data sent with every request
  * 
  */
-
 const cookieOptions: SessionOptions['cookieOptions'] = {
     // domain: config.ENVIRONMENT === 'development' ? 'localhost' : undefined,
     path: '/',

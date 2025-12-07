@@ -5,7 +5,7 @@ import userDtoValidation from "@/validation/user.validation";
 import userRepository from "@/repository/user.repository";
 import userService from "@/services/user.service";
 import type { IUserAttributes } from "@/models/User.model";
-import { getSessionData, getValidPinSession, setSessionData, type PinSessionData } from "@/core/session";
+import { getValidPinSession, setSessionData, type PinSessionData } from "@/core/session";
 
 
 /**
@@ -49,26 +49,44 @@ const Login = async (c: Context) => {
     try {
         type LoginBody = InferSchemaType<typeof userDtoValidation.loginValidation>;
         const { email, password } = c.get('validated') as LoginBody;
-        // Check if user exists and account status
+
+        // Check if user exists
         const user = await userRepository.findUserByEmail(email);
         if (!user) {
             return res.FailureResponse(c, 400, {
                 message: "User not found",
             });
         }
-        // Check if password is correct
-        const isPasswordCorrect = await userService.verifyPassword(password, user.password_hash);
 
+        // Verify password
+        const isPasswordCorrect = await userService.verifyPassword(password, user.password_hash);
         if (!isPasswordCorrect) {
             return res.FailureResponse(c, 400, {
                 message: "Invalid password",
             });
         }
-        // Generate session
-        const session = await userService.generateSession(user);
+
+        // Get metadata for token generation
+        const ip = c.req.header("x-forwarded-for") || c.req.header("x-real-ip") || c.env?.ip;
+        const userAgent = c.req.header("user-agent");
+
+        // Generate session with refresh token
+        const session = await userService.generateSession(user, { ip, userAgent });
+
         return res.SuccessResponse(c, 200, {
             message: "Login successful",
-            data: { jwt: session, user: user },
+            data: {
+                access_token: session.jwt_token,
+                refresh_token: session.refresh_token,
+                expires_at: session.expiresAt,
+                refresh_expires_at: session.refreshExpiresAt,
+                user: {
+                    id: user.id,
+                    email: user.email,
+                    display_name: user.display_name,
+                    avatar_url: user.avatar_url,
+                }
+            },
         });
 
     } catch (error) {

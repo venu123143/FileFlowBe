@@ -6,22 +6,18 @@ import { type IUserAttributes } from "@/models/User.model";
 import redisConn from "@/config/redis.config";
 import redisConstants from "@/global/redis-constants";
 import bcryptjs from "bcryptjs";
+import authService from "@/services/auth.service";
 
 
-async function generateSession(user: IUserAttributes, metadata?: Record<string, any>): Promise<{ jwt_token: string; expiresAt: number }> {
-    const issuedAt = Math.floor(Date.now() / 1000); // seconds
-    const expiresIn = constants.TOKEN_EXPIRY_TIME; // e.g. 3600 for 1 hour
-    const expiresAt = issuedAt + expiresIn;
+async function generateSession(user: IUserAttributes, metadata?: Record<string, any>): Promise<{ jwt_token: string; refresh_token: string; expiresAt: number; refreshExpiresAt: number }> {
+    // Use the new auth service to generate token pair
+    const tokenPair = await authService.generateTokenPair(user, metadata);
 
-    const payload = {
-        id: user.id,
-        email: user.email,
-    };
-    const jwt_token = await jwt.generateJwtToken(payload, expiresIn);
+    // Still save the access token session for backward compatibility
     const login_details: IUserSessionAttributes = {
-        session_token: jwt_token,
-        user_id: payload.id,
-        expires_at: new Date(expiresAt * 1000),
+        session_token: tokenPair.accessToken,
+        user_id: user.id,
+        expires_at: new Date(tokenPair.accessTokenExpiresAt * 1000),
         is_active: true,
         device_token: null,
         metadata: metadata ? metadata : null,
@@ -30,10 +26,16 @@ async function generateSession(user: IUserAttributes, metadata?: Record<string, 
 
     // Store session info in Redis with a dynamic key
     const client = redisConn.getClient();
-    const sessionKey = `${redisConstants.USER_SESSION_PREFIX}${user.id}:${jwt_token}`;
+    const sessionKey = `${redisConstants.USER_SESSION_PREFIX}${user.id}:${tokenPair.accessToken}`;
     // Store with TTL matching token expiry
-    await client.set(sessionKey, JSON.stringify({ login_details, user }), 'EX', expiresIn);
-    return { jwt_token, expiresAt };
+    await client.set(sessionKey, JSON.stringify({ login_details, user }), 'EX', constants.ACCESS_TOKEN_EXPIRY_TIME);
+
+    return {
+        jwt_token: tokenPair.accessToken,
+        refresh_token: tokenPair.refreshToken,
+        expiresAt: tokenPair.accessTokenExpiresAt,
+        refreshExpiresAt: tokenPair.refreshTokenExpiresAt
+    };
 }
 
 async function logout(userId: string, sessionToken: string): Promise<boolean> {
@@ -64,6 +66,9 @@ async function logoutAllSessions(userId: string): Promise<boolean> {
     if (keys.length > 0) {
         await client.del(...keys); // delete all at once
     }
+
+    // 3. Also revoke all refresh tokens
+    await authService.revokeAllUserTokens(userId);
 
     return true;
 }
