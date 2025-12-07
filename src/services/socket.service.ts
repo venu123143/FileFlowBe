@@ -41,7 +41,7 @@ class SocketService {
 
                 const decoded = jwt.verifyJwtToken(token);
                 const client = redisConn.getClient();
-                const sessionKey = `${redisConstants.USER_SESSION_PREFIX}${decoded.id}:${token}`;
+                const sessionKey = `${redisConstants.ACCESS_TOKEN_PREFIX}${decoded.id}:${token}`;
                 const sessionData = await client.get(sessionKey);
 
                 if (!sessionData) {

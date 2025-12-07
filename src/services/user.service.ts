@@ -26,7 +26,7 @@ async function generateSession(user: IUserAttributes, metadata?: Record<string, 
 
     // Store session info in Redis with a dynamic key
     const client = redisConn.getClient();
-    const sessionKey = `${redisConstants.USER_SESSION_PREFIX}${user.id}:${tokenPair.accessToken}`;
+    const sessionKey = `${redisConstants.ACCESS_TOKEN_PREFIX}${user.id}:${tokenPair.accessToken}`;
     // Store with TTL matching token expiry
     await client.set(sessionKey, JSON.stringify({ login_details, user }), 'EX', constants.ACCESS_TOKEN_EXPIRY_TIME);
 
@@ -40,11 +40,11 @@ async function generateSession(user: IUserAttributes, metadata?: Record<string, 
 
 async function logout(userId: string, sessionToken: string): Promise<boolean> {
     // 1. Delete session from database completely
-    await userRepository.deleteSessionByToken(sessionToken);
+    // await userRepository.deleteSessionByToken(sessionToken);
 
     // 2. Delete session from Redis
     const client = redisConn.getClient();
-    const sessionKey = `${redisConstants.USER_SESSION_PREFIX}${userId}:${sessionToken}`;
+    const sessionKey = `${redisConstants.ACCESS_TOKEN_PREFIX}${userId}:${sessionToken}`;
     await client.del(sessionKey);
 
     return true;
@@ -53,15 +53,15 @@ async function logout(userId: string, sessionToken: string): Promise<boolean> {
 
 async function logoutAllSessions(userId: string): Promise<boolean> {
     // 1. Deactivate all active sessions for the user in database
-    const activeSessions = await userRepository.findActiveSessionsByUserId(userId);
+    // const activeSessions = await userRepository.findActiveSessionsByUserId(userId);
 
-    for (const session of activeSessions) {
-        await userRepository.deactivateSessionByToken(session.session_token);
-    }
+    // for (const session of activeSessions) {
+    //     await userRepository.deactivateSessionByToken(session.session_token);
+    // }
 
     // 2. Delete session from Redis
     const client = redisConn.getClient();
-    const sessionPattern = `${redisConstants.USER_SESSION_PREFIX}${userId}:*`;
+    const sessionPattern = `${redisConstants.ACCESS_TOKEN_PREFIX}${userId}:*`;
     const keys = await client.keys(sessionPattern);
     if (keys.length > 0) {
         await client.del(...keys); // delete all at once

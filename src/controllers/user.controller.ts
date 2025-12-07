@@ -80,12 +80,7 @@ const Login = async (c: Context) => {
                 refresh_token: session.refresh_token,
                 expires_at: session.expiresAt,
                 refresh_expires_at: session.refreshExpiresAt,
-                user: {
-                    id: user.id,
-                    email: user.email,
-                    display_name: user.display_name,
-                    avatar_url: user.avatar_url,
-                }
+                user: user
             },
         });
 

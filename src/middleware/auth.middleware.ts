@@ -5,8 +5,6 @@ import jwt from "@/utils/jwt-token";
 import db from "@/config/database";
 import redisConn from "@/config/redis.config";
 import redisConstants from "@/global/redis-constants";
-import { type ISessionData } from "@/types/hono";
-import authService from "@/services/user.service";
 import { getValidPinSession } from "@/core/session";
 import crypto from "crypto";
 

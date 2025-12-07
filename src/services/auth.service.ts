@@ -145,8 +145,8 @@ async function rotateRefreshToken(oldRefreshToken: string, metadata?: RefreshTok
  */
 async function revokeRefreshToken(refreshToken: string): Promise<boolean> {
     try {
-        const tokenHash = hashRefreshToken(refreshToken);
-        const savedToken = await refreshTokenRepository.findRefreshTokenByHash(tokenHash);
+        // const tokenHash = hashRefreshToken(refreshToken);
+        const savedToken = await refreshTokenRepository.findRefreshTokenByHash(refreshToken);
 
         if (!savedToken) {
             return false;
@@ -170,15 +170,6 @@ async function revokeRefreshToken(refreshToken: string): Promise<boolean> {
 async function revokeAllUserTokens(userId: string): Promise<number> {
     // Revoke in database
     const count = await refreshTokenRepository.revokeAllRefreshTokensForUser(userId);
-
-    // Delete all access tokens from Redis for this user
-    const client = redisConn.getClient();
-    const pattern = `${redisConstants.ACCESS_TOKEN_PREFIX}${userId}:*`;
-    const keys = await client.keys(pattern);
-    if (keys.length > 0) {
-        await client.del(...keys);
-    }
-
     return count;
 }
 

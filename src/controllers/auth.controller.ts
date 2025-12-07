@@ -88,7 +88,6 @@ const revokeAllTokens = async (c: Context) => {
             },
         });
     } catch (error) {
-        console.error("Revoke all tokens error:", error);
         return res.FailureResponse(c, 500, {
             message: "Failed to revoke all tokens",
         });
@@ -113,6 +112,7 @@ const getActiveSessions = async (c: Context) => {
         // Map to user-friendly format (don't expose token hashes)
         const sessionData = sessions.map(session => ({
             id: session.id,
+            refresh_token: session.token_hash,
             created_at: session.created_at,
             expires_at: session.expires_at,
             last_used_at: session.last_used_at,

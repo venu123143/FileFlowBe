@@ -17,7 +17,7 @@ export function hashRefreshToken(token: string): string {
  * @param hash - The stored hash to compare against
  * @returns True if the token matches the hash
  */
-export function verifyRefreshTokenHash(token: string, hash: string): boolean {
+export function verifyRefreshTokenHash(hash: string, token: string): boolean {
     const computedHash = hashRefreshToken(token);
     return crypto.timingSafeEqual(Buffer.from(computedHash, 'hex'), Buffer.from(hash, 'hex'));
 }
