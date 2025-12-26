@@ -73,7 +73,7 @@ const deleteFile = async (c: Context) => {
 
 const getFiles = async (c: Context) => {
     try {
-        const validatedParams = c.get('validatedParams') as { fileName: string }
+        const validatedParams = c.get('validatedQuery') as { fileName: string }
         const { fileName } = validatedParams
 
         const url = await s3Service.getFileUrl(fileName)

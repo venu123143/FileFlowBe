@@ -119,8 +119,8 @@ const getPartsValidation = Joi.object({
 const fileNameValidation = Joi.object({
     fileName: Joi.string()
         .min(1)
-        .max(255)
-        .pattern(/^[^<>:"/\\|?*]+$/)
+        .max(1000)
+        // .pattern(/^[^<>:"/\\|?*]+$/)
         .required()
         .messages({
             'string.empty': 'File name is required',
