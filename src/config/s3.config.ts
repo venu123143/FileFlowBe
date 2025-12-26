@@ -46,7 +46,7 @@ export class S3Service {
             credentials: {
                 accessKeyId: config.S3.TOKEN_ID,
                 secretAccessKey: config.S3.SECRET_KEY,
-                accountId: config.S3.ACCOUNT_ID
+                // accountId: config.S3.ACCOUNT_ID
             },
             forcePathStyle: true,
         });
