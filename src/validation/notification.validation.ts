@@ -10,13 +10,10 @@ const getNotificationsValidation = Joi.object({
             'number.min': 'Limit should be at least 1',
             'number.max': 'Limit cannot exceed 100',
         }),
-    offset: Joi.number().integer().min(0)
+    cursor: Joi.string()
         .optional()
-        .default(0)
         .messages({
-            'number.base': 'Offset should be a number',
-            'number.integer': 'Offset should be an integer',
-            'number.min': 'Offset should be zero or greater',
+            'string.base': 'Cursor should be a string',
         }),
     unreadOnly: Joi.boolean()
         .optional()

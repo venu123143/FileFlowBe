@@ -5,8 +5,78 @@ import jwt from "@/utils/jwt-token";
 import db from "@/config/database";
 import redisConn from "@/config/redis.config";
 import redisConstants from "@/global/redis-constants";
-import { type ISessionData } from "@/types/hono";
-import authService from "@/services/user.service";
+import { getValidPinSession } from "@/core/session";
+import crypto from "crypto";
+
+
+
+const verifyBearerToken = async (c: Context, token: string, next: Next) => {
+    try {
+        const jwt_decode = jwt.verifyJwtToken(token);
+
+        // Check if access token exists in Redis (fast validation)
+        const client = redisConn.getClient();
+        const redisKey = `${redisConstants.ACCESS_TOKEN_PREFIX}${jwt_decode.id}:${token}`;
+        const tokenData = await client.get(redisKey);
+
+        if (!tokenData) {
+            return res.FailureResponse(c, 401, { message: "Session expired or invalid." });
+        }
+
+        // Verify user exists in database
+        const find_user = await db.User.findOne({ where: { id: jwt_decode.id }, raw: true });
+        if (!find_user) {
+            return res.FailureResponse(c, 401, { message: "Login expired." });
+        }
+
+        // Attach the user object to the context for downstream handlers
+        c.set("user", find_user);
+        await next();
+    } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        return res.FailureResponse(c, 401, { message: "Login expired.", error: errorMessage });
+    }
+}
+
+
+const verifyApiToken = async (c: Context, token: string, next: Next) => {
+    try {
+        const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
+
+        const apiToken = await db.ApiToken.findOne({
+            where: { token_hash: tokenHash, is_active: true }
+        });
+
+        if (!apiToken) {
+            return res.FailureResponse(c, 401, { message: "Invalid API token." });
+        }
+
+        // Check expiry
+        if (apiToken.expires_at && new Date() > apiToken.expires_at) {
+            return res.FailureResponse(c, 401, { message: "API token expired." });
+        }
+
+        // Update last_used_at and increment usage_count
+        await apiToken.update({
+            last_used_at: new Date(),
+            usage_count: (apiToken.usage_count || 0) + 1
+        });
+
+        // Get user
+        const user = await db.User.findByPk(apiToken.user_id);
+        if (!user) {
+            return res.FailureResponse(c, 401, { message: "User not found." });
+        }
+
+        c.set("user", user);
+        await next();
+
+    } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        return res.FailureResponse(c, 401, { message: "Invalid API token.", error: errorMessage });
+    }
+}
+
 
 /**
  * Authentication middleware for protecting routes.
@@ -27,40 +97,60 @@ const authMiddleware: MiddlewareHandler = async (c: Context, next: Next) => {
         return res.FailureResponse(c, 401, { message: "Login expired." });
     }
 
+    // Check if token is JWT (contains dots)
+    if (token.includes('.')) {
+        return await verifyBearerToken(c, token, next);
+    } else {
+        return await verifyApiToken(c, token, next);
+    }
+};
+
+/**
+ * PIN Session Verification Middleware
+ * Verifies that the user has a valid PIN session (20 minutes expiry)
+ * This middleware should be used after authMiddleware and session middleware
+ */
+const pinSessionMiddleware: MiddlewareHandler = async (c: Context, next: Next) => {
     try {
-        // Verify the JWT token (throws if invalid or expired)
-        const jwt_decode = jwt.verifyJwtToken(token);
+        // Get session from context (set by session middleware)
+        // The session middleware automatically reads the 'fileflow_session' cookie
+        const session = c.get('session');
 
-        // 2️⃣ Check Redis session
-        const client = redisConn.getClient();
-        const sessionKey = `${redisConstants.USER_SESSION_PREFIX}${jwt_decode.id}:${token}`;
-        const sessionData = await client.get(sessionKey);
-
-        if (!sessionData) {
-            return res.FailureResponse(c, 401, { message: "Session expired or invalid." });
+        if (!session) {
+            return res.FailureResponse(c, 401, {
+                message: "Session not available. Please verify your PIN."
+            });
         }
 
-        const { login_details } = authService.parseJson<ISessionData>(sessionData);
+        // Get valid PIN session (checks expiry automatically)
+        const pinSession = await getValidPinSession(session);
 
-        // Ensure the token matches the stored session
-        if (login_details.session_token !== token || !login_details.is_active) {
-            return res.FailureResponse(c, 401, { message: "Invalid or inactive session." });
+        if (!pinSession) {
+            return res.FailureResponse(c, 403, {
+                message: "PIN not verified or session expired. Please verify your PIN to continue."
+            });
         }
-        const find_user = await db.User.findOne({ where: { id: jwt_decode.id }, raw: true });
-        if (!find_user) {
-            return res.FailureResponse(c, 401, { message: "Login expired." });
+
+        // Verify that the user in PIN session matches the authenticated user
+        const user = c.get('user');
+        if (user && pinSession.user_id !== user.id) {
+            return res.FailureResponse(c, 401, {
+                message: "PIN session user mismatch."
+            });
         }
-        // Attach the user object to the context for downstream handlers
-        c.set("user", find_user);
-        // Proceed to the next middleware or route handler
+
+        // PIN session is valid, proceed to next middleware/route
         await next();
-
     } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error);
-        return res.FailureResponse(c, 401, { message: "Login expired.", error: errorMessage });
+        return res.FailureResponse(c, 500, {
+            message: "Error verifying PIN session.",
+            error: errorMessage
+        });
     }
 };
 
 export default {
     authMiddleware,
+    pinSessionMiddleware,
 };

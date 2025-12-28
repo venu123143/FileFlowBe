@@ -37,7 +37,7 @@ const db = {
 }
 
 // Sync database tables. don't use this in production
-// connection.sync({ alter: true, force: true })
+// connection.sync({ alter: true })
 //     .then(() => console.log('Database tables synced.'))
 //     .catch((error: unknown) => console.error('Error syncing database:', error));
 

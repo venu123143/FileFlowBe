@@ -21,16 +21,18 @@ export class FileRouter {
         this.router.patch('/folder/:id/rename', validateBody(fileDtoValidation.renameFolderValidation), FileController.renameFolder);
         this.router.patch('/folder/:id/move', validateBody(fileDtoValidation.moveFileValidation), FileController.moveFileOrFolder);
         this.router.post('/file', validateBody(fileDtoValidation.createFileValidation), FileController.createFile);
-        this.router.post('/share/file/:id',validateBody(fileDtoValidation.shareFileValidation), FileController.shareFileOrFolder);
+        this.router.post('/share/file/:id', validateBody(fileDtoValidation.shareFileValidation), FileController.shareFileOrFolder);
         this.router.get('/share/file/all-shared-files', FileController.getAllSharedFiles);
         this.router.get('/share/file/shared-by-me', FileController.getAllSharedFilesByMe);
         this.router.get('/share/file/shared-with-me', FileController.getAllSharedFilesWithMe);
         this.router.get('/file/all', FileController.getFileSystemTree);
         this.router.get('/file/trash', FileController.getTrash);
+        // Apply session middleware before pinSessionMiddleware for /file/recents route
         this.router.get('/file/recents', FileController.getRecents);
         this.router.delete('/file/empty-trash', FileController.emptyTrash);
         this.router.delete('/file/:id', FileController.deleteFileOrFolder);
         this.router.post('/file/:id/restore', FileController.restoreFileOrFolder);
+        this.router.patch('/file/:id/update-access-level', validateBody(fileDtoValidation.updateFileAccessLevelValidation), FileController.updateFileAccessLevel);
     }
 
     public getRouter() {

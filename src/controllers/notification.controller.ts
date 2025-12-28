@@ -13,16 +13,16 @@ const getUserNotifications = async (c: Context) => {
 
         const validatedQuery = c.get('validatedQuery') as {
             limit?: number
-            offset?: number
+            cursor?: string
             unreadOnly?: boolean
         }
 
-        const { limit = 20, offset = 0, unreadOnly = false } = validatedQuery
+        const { limit = 20, cursor, unreadOnly = false } = validatedQuery
 
         const result = await notificationRepository.getUserNotifications(
             user.id,
             limit,
-            offset,
+            cursor,
             unreadOnly
         )
 
@@ -30,8 +30,8 @@ const getUserNotifications = async (c: Context) => {
             message: "Notifications retrieved successfully",
             data: {
                 notifications: result.notifications,
-                totalCount: result.totalCount,
-                hasMore: (offset + limit) < result.totalCount
+                nextCursor: result.nextCursor,
+                hasMore: result.hasMore
             },
         })
     } catch (error: any) {

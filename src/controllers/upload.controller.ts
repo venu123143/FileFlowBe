@@ -39,7 +39,7 @@ const uploadFile = async (c: Context) => {
         })
 
     } catch (error: any) {
-        return res.FailureResponse(c, 500, { message: "Internal server error" })
+        return res.FailureResponse(c, 500, { message: "Internal server error", error: error.message })
     }
 }
 
@@ -73,7 +73,7 @@ const deleteFile = async (c: Context) => {
 
 const getFiles = async (c: Context) => {
     try {
-        const validatedParams = c.get('validatedParams') as { fileName: string }
+        const validatedParams = c.get('validatedQuery') as { fileName: string }
         const { fileName } = validatedParams
 
         const url = await s3Service.getFileUrl(fileName)

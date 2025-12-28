@@ -12,7 +12,7 @@ interface GetAllUsersParams {
 
 const saveSession = async (login_details: IUserSessionAttributes) => {
     await db.User.update({ last_login: new Date() }, { where: { id: login_details.user_id } });
-    return await db.UserSession.create(login_details);
+    // return await db.UserSession.create(login_details);
 }
 
 const deleteSessionByToken = async (session_token: string) => {
@@ -79,6 +79,14 @@ const getAllUsers = async (validated: GetAllUsersParams, user_id: string) => {
     };
 };
 
+const updatePin = async (user_id: string, pin_hash: string) => {
+    const [affectedRows] = await db.User.update(
+        { pin_hash },
+        { where: { id: user_id } }
+    );
+    return affectedRows > 0;
+};
+
 
 export default {
     saveSession,
@@ -87,5 +95,6 @@ export default {
     findUserByEmail,
     deactivateSessionByToken,
     createUser,
-    getAllUsers
+    getAllUsers,
+    updatePin
 }

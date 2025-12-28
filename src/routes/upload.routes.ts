@@ -54,9 +54,9 @@ export class UploadRouter {
             uploadImageMiddleware, 
             uploadController.uploadFile
         )
-        this.router.get('/file/:fileName', 
+        this.router.get('/file/get-file', 
             Middleware.authMiddleware, 
-            validateParams(uploadValidation.fileNameValidation),
+            validateQuery(uploadValidation.fileNameValidation),
             uploadController.getFiles
         )
         this.router.delete('/file/:fileName', 

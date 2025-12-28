@@ -1,7 +1,7 @@
 import type { QueryInterface } from 'sequelize';
 
 export async function up(queryInterface: QueryInterface) {
-  // Create the shared children recursive function
+  // Create the shared children recursive function with user details
   await queryInterface.sequelize.query(`
     CREATE OR REPLACE FUNCTION build_shared_children_recursive(parent_uuid UUID, share_id_param UUID)
     RETURNS JSON AS $$
@@ -9,11 +9,32 @@ export async function up(queryInterface: QueryInterface) {
         result JSON;
         share_info RECORD;
     BEGIN
-        -- Get share information once for this tree
-        SELECT s.shared_by_user_id, s.shared_with_user_id, s.permission_level, 
-               s.message, s.expires_at, s.created_at as share_created_at
+        -- Get share information with user details
+        SELECT 
+            s.shared_by_user_id, 
+            s.shared_with_user_id, 
+            s.permission_level, 
+            s.message, 
+            s.expires_at, 
+            s.created_at as share_created_at,
+            -- Shared by user details
+            JSON_BUILD_OBJECT(
+                'id', u_by.id,
+                'email', u_by.email,
+                'display_name', u_by.display_name,
+                'avatar_url', u_by.avatar_url
+            ) as shared_by_user,
+            -- Shared with user details
+            JSON_BUILD_OBJECT(
+                'id', u_with.id,
+                'email', u_with.email,
+                'display_name', u_with.display_name,
+                'avatar_url', u_with.avatar_url
+            ) as shared_with_user
         INTO share_info
         FROM shares s
+        LEFT JOIN users u_by ON s.shared_by_user_id = u_by.id
+        LEFT JOIN users u_with ON s.shared_with_user_id = u_with.id
         WHERE s.id = share_id_param;
         
         -- If share not found, return empty array
@@ -40,6 +61,8 @@ export async function up(queryInterface: QueryInterface) {
                 'share_id', share_id_param,
                 'shared_by_user_id', share_info.shared_by_user_id,
                 'shared_with_user_id', share_info.shared_with_user_id,
+                'shared_by_user', share_info.shared_by_user,
+                'shared_with_user', share_info.shared_with_user,
                 'permission_level', share_info.permission_level,
                 'share_message', share_info.message,
                 'expires_at', share_info.expires_at,
@@ -60,16 +83,22 @@ export async function up(queryInterface: QueryInterface) {
     $$ LANGUAGE plpgsql;
   `);
 
-  // -- Create an index to improve performance for share lookups
+  // Create an index to improve performance for share lookups
   await queryInterface.sequelize.query(`
     CREATE INDEX IF NOT EXISTS idx_shares_composite_lookup 
     ON shares(shared_with_user_id, shared_by_user_id, expires_at, created_at);
   `);
 
-  // -- Create an index for file parent lookups in sharing context  
+  // Create an index for file parent lookups in sharing context  
   await queryInterface.sequelize.query(`
     CREATE INDEX IF NOT EXISTS idx_files_parent_deleted_lookup 
     ON files(parent_id, deleted_at, is_folder, name) WHERE deleted_at IS NULL;
+  `);
+
+  // Create indexes on users table for faster joins in sharing queries
+  await queryInterface.sequelize.query(`
+    CREATE INDEX IF NOT EXISTS idx_users_id_details 
+    ON users(id, email, display_name, avatar_url) WHERE is_active = true;
   `);
 }
 
@@ -77,4 +106,5 @@ export async function down(queryInterface: QueryInterface) {
   await queryInterface.sequelize.query('DROP FUNCTION IF EXISTS build_shared_children_recursive(UUID, UUID);');
   await queryInterface.sequelize.query('DROP INDEX IF EXISTS idx_shares_composite_lookup;');
   await queryInterface.sequelize.query('DROP INDEX IF EXISTS idx_files_parent_deleted_lookup;');
+  await queryInterface.sequelize.query('DROP INDEX IF EXISTS idx_users_id_details;');
 }
