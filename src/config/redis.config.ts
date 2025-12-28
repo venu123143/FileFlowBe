@@ -13,7 +13,6 @@ class RedisConnectionManager {
 
     private setupClient() {
         if (this.isConnecting && this.client && this.client.status === 'connecting') {
-            console.log('ioredis client already connecting.');
             return;
         }
 
@@ -44,12 +43,10 @@ class RedisConnectionManager {
         });
 
         this.client.on('error', (err: Error) => {
-            console.error('unable to connect to redis:', err.message);
             this.isConnecting = false; // Reset connection status on error
         });
 
         this.client.on('connect', () => {
-            console.log('ioredis Client Connected');
             this.isConnecting = false; // Connection successful
             if (this.reconnectTimeout) {
                 clearTimeout(this.reconnectTimeout);
@@ -58,12 +55,10 @@ class RedisConnectionManager {
         });
 
         this.client.on('reconnecting', (delay: number) => {
-            console.log(`ioredis Client Reconnecting... next attempt in ${delay}ms`);
             this.isConnecting = true; // Indicate reconnecting
         });
 
         this.client.on('end', () => {
-            console.log('ioredis Client Connection Closed');
             this.isConnecting = false; // Connection ended
         });
 

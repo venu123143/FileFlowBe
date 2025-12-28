@@ -548,10 +548,52 @@ const getRecents = async (userId: string, page: number = 1, limit: number = 20) 
   };
 };
 
-// Update the file's access level, you can only update the access level of the file if you are the owner of the file.
+/**
+ * Update the file's access level recursively
+ * When a folder's access level is changed, all its children (files and subfolders) 
+ * will also have their access level updated to match the parent's new access level.
+ */
 const updateFileAccessLevel = async (fileId: string, userId: string, accessLevel: AccessLevel) => {
-  const file = await db.File.update({ access_level: accessLevel }, { where: { id: fileId, owner_id: userId } });
-  return file;
+  // First, verify the file exists and user is the owner
+  const targetFile = await db.File.findOne({
+    where: { id: fileId, owner_id: userId },
+    attributes: ['id', 'is_folder', 'access_level']
+  });
+
+  if (!targetFile) {
+    throw new Error('File not found or you do not have permission to update it');
+  }
+
+  // Use a recursive query to update the target file and all its descendants
+  const query = `
+    WITH RECURSIVE file_tree AS (
+      -- Base case: the target file/folder
+      SELECT id, parent_id, is_folder
+      FROM files
+      WHERE id = :fileId AND owner_id = :userId AND deleted_at IS NULL
+      
+      UNION ALL
+      
+      -- Recursive case: all descendants
+      SELECT f.id, f.parent_id, f.is_folder
+      FROM files f
+      INNER JOIN file_tree ft ON f.parent_id = ft.id
+      WHERE f.owner_id = :userId AND f.deleted_at IS NULL
+    )
+    UPDATE files
+    SET access_level = :accessLevel, updated_at = NOW()
+    FROM file_tree
+    WHERE files.id = file_tree.id
+    RETURNING files.id;
+  `;
+
+  const result = await db.connection.query(query, {
+    type: QueryTypes.UPDATE,
+    replacements: { fileId, userId, accessLevel }
+  });
+
+  // Return the count of updated files
+  return result[1] || 0;
 };
 
 export default {

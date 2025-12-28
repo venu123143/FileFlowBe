@@ -315,10 +315,25 @@ const updateFileAccessLevel = async (c: Context) => {
         const value = c.get<UpdateFileAccessLevelBody>('validated');
         const user = c.get('user') as IUserAttributes;
         const fileId = c.req.param('id');
-        const updatedFile = await fileRepository.updateFileAccessLevel(fileId, user.id, value.access_level);
-        return res.SuccessResponse(c, 200, { message: "File access level updated successfully", data: updatedFile });
+        
+        const updatedCount = await fileRepository.updateFileAccessLevel(fileId, user.id, value.access_level);
+        
+        return res.SuccessResponse(c, 200, { 
+            message: "File access level updated successfully", 
+            data: { 
+                updatedCount,
+                message: updatedCount > 1 
+                    ? `Updated ${updatedCount} items (folder and its contents)` 
+                    : 'Updated 1 item'
+            } 
+        });
 
-    } catch (error) {
+    } catch (error: any) {
+        if (error.message === 'File not found or you do not have permission to update it') {
+            return res.FailureResponse(c, 404, {
+                message: error.message
+            });
+        }
         if (error instanceof ForeignKeyConstraintError && error.index === "files_parent_id_fkey") {
             return res.FailureResponse(c, 422, {
                 message: "Invalid parent folder ID. The specified folder does not exist."
@@ -329,6 +344,7 @@ const updateFileAccessLevel = async (c: Context) => {
                 message: "A folder/file with this name already exists in the same location."
             });
         }
+        console.error('Error updating file access level:', error);
         return res.FailureResponse(c, 500, { message: "Internal server error" });
     }
 }
