@@ -60,8 +60,6 @@ export class App {
 
     private registerErrorHandler() {
         this.app.onError((err, c) => {
-            console.log(err);
-            console.error("❗ Unhandled error:", err.message);
             return c.text("Internal Server Error", 500);
         });
     }
