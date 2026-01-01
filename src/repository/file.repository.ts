@@ -136,11 +136,7 @@ const revokeShare = async (shareId: string, userId: string) => {
       shared_by_user_id: userId
     }
   });
-  
-  if (deleted === 0) {
-    throw new Error('Share not found or you do not have permission to revoke it');
-  }
-  
+
   return deleted;
 };
 

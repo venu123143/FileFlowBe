@@ -245,8 +245,21 @@ const revokeShare = async (c: Context) => {
         const user = c.get('user') as IUserAttributes;
         const shareId = c.req.param('shareId');
 
-        await fileRepository.revokeShare(shareId, user.id);
+        const deleted = await fileRepository.revokeShare(shareId, user.id);
+        if (deleted === 0) {
+            return res.FailureResponse(c, 404, { message: "Share not found or you do not have permission to revoke it" });
+        }
 
+        addToNotificationQueue({
+            user_id: user.id,
+            type: NotificationType.FILE_SHARE_REVOKED,
+            title: `${user.display_name} revoked a share`,
+            message: `Share has been revoked successfully`,
+            is_read: false,
+            created_at: new Date(),
+            data: { shareId, deleted },
+            related_user_id: user.id,
+        })
         return res.SuccessResponse(c, 200, { message: "Share revoked successfully", data: {} });
     } catch (error: any) {
         if (error.message === 'Share not found or you do not have permission to revoke it') {
@@ -332,17 +345,17 @@ const updateFileAccessLevel = async (c: Context) => {
         const value = c.get<UpdateFileAccessLevelBody>('validated');
         const user = c.get('user') as IUserAttributes;
         const fileId = c.req.param('id');
-        
+
         const updatedCount = await fileRepository.updateFileAccessLevel(fileId, user.id, value.access_level);
-        
-        return res.SuccessResponse(c, 200, { 
-            message: "File access level updated successfully", 
-            data: { 
+
+        return res.SuccessResponse(c, 200, {
+            message: "File access level updated successfully",
+            data: {
                 updatedCount,
-                message: updatedCount > 1 
-                    ? `Updated ${updatedCount} items (folder and its contents)` 
+                message: updatedCount > 1
+                    ? `Updated ${updatedCount} items (folder and its contents)`
                     : 'Updated 1 item'
-            } 
+            }
         });
 
     } catch (error: any) {
