@@ -240,6 +240,23 @@ const shareFileOrFolder = async (c: Context) => {
     }
 }
 
+const revokeShare = async (c: Context) => {
+    try {
+        const user = c.get('user') as IUserAttributes;
+        const shareId = c.req.param('shareId');
+
+        await fileRepository.revokeShare(shareId, user.id);
+
+        return res.SuccessResponse(c, 200, { message: "Share revoked successfully", data: {} });
+    } catch (error: any) {
+        if (error.message === 'Share not found or you do not have permission to revoke it') {
+            return res.FailureResponse(c, 404, { message: error.message });
+        }
+        console.log(error);
+        return res.FailureResponse(c, 500, { message: "Internal server error" });
+    }
+}
+
 const getAllSharedFiles = async (c: Context) => {
     try {
         const user = c.get('user') as IUserAttributes;
@@ -360,6 +377,7 @@ export default {
     restoreFileOrFolder,
     deleteFileOrFolder,
     shareFileOrFolder,
+    revokeShare,
     getAllSharedFiles,
     getAllSharedFilesByMe,
     getAllSharedFilesWithMe,

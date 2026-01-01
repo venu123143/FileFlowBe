@@ -22,6 +22,7 @@ export class FileRouter {
         this.router.patch('/folder/:id/move', validateBody(fileDtoValidation.moveFileValidation), FileController.moveFileOrFolder);
         this.router.post('/file', validateBody(fileDtoValidation.createFileValidation), FileController.createFile);
         this.router.post('/share/file/:id', validateBody(fileDtoValidation.shareFileValidation), FileController.shareFileOrFolder);
+        this.router.delete('/share/:shareId', FileController.revokeShare);
         this.router.get('/share/file/all-shared-files', FileController.getAllSharedFiles);
         this.router.get('/share/file/shared-by-me', FileController.getAllSharedFilesByMe);
         this.router.get('/share/file/shared-with-me', FileController.getAllSharedFilesWithMe);
