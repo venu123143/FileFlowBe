@@ -128,6 +128,18 @@ const shareFileOrFolder = async (share: ShareAttributes) => {
   return file;
 };
 
+const revokeShare = async (shareId: string, userId: string) => {
+  // Only allow the owner (shared_by_user_id) to revoke the share
+  const deleted = await db.Share.destroy({
+    where: {
+      id: shareId,
+      shared_by_user_id: userId
+    }
+  });
+
+  return deleted;
+};
+
 
 
 /**
@@ -606,6 +618,7 @@ export default {
   restoreFileOrFolder,
   deleteFileOrFolder,
   shareFileOrFolder,
+  revokeShare,
   getAllSharedFiles,
   getAllSharedFilesByMe,
   getAllSharedFilesWithMe,
