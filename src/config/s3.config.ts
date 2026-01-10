@@ -56,6 +56,19 @@ export class S3Service {
         return `https://${config.CLOUDFLARE.CDN_DOMAIN}/${key}`;
     }
 
+    /**
+     * Sanitizes metadata values to ensure they're valid for HTTP headers.
+     * HTTP headers cannot contain certain characters like non-ASCII, control characters, etc.
+     */
+    private sanitizeMetadataValue(value: string): string {
+        // Replace non-ASCII and control characters with safe equivalents
+        // Keep only alphanumeric, spaces, hyphens, underscores, and periods
+        return value
+            .replace(/[^\x20-\x7E]/g, '') // Remove non-printable ASCII
+            .replace(/[<>:"/\\|?*\x00-\x1F]/g, '_') // Replace invalid chars with underscore
+            .substring(0, 2000); // AWS metadata value limit is 2KB
+    }
+
     private calculateChunkChecksum(chunkBuffer: Buffer<ArrayBuffer>): string {
         const hash = crypto.createHash('sha256');
         hash.update(chunkBuffer);
@@ -63,13 +76,16 @@ export class S3Service {
     }
 
     public async uploadFile(file: IFile): Promise<string> {
+        // Sanitize original name for HTTP header compatibility
+        const sanitizedOriginalName = this.sanitizeMetadataValue(file.originalName);
+        
         const params: PutObjectCommandInput = {
             Bucket: config.S3.BUCKET_NAME,
             Key: `${FolderNameEnum.FILES}/${file.filename}`,
             Body: file.buffer,
             ContentType: file.mimetype,
             Metadata: {
-                originalName: file.originalName,
+                originalName: sanitizedOriginalName,
                 uploadedAt: new Date().toISOString(),
                 size: file.size.toString(),
             },
@@ -88,13 +104,16 @@ export class S3Service {
         folder: FolderNameEnum = FolderNameEnum.FILES
     ): Promise<string> {
         const path = `${folder}/${key}`;
+        // Sanitize original name for HTTP header compatibility
+        const sanitizedOriginalName = this.sanitizeMetadataValue(fileName);
+        
         const params = {
             Bucket: config.S3.BUCKET_NAME,
             Key: path,
             Body: buffer,
             ContentType: mimeType,
             Metadata: {
-                originalName: fileName,
+                originalName: sanitizedOriginalName,
                 uploadedAt: new Date().toISOString(),
                 size: buffer.length.toString(),
             },
