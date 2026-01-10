@@ -5,13 +5,14 @@ import s3Service from "@/config/s3.config"
 import type { IUserAttributes } from "@/models/User.model"
 import { NotificationType, type IFileInfo } from "@/models"
 import { addToNotificationQueue } from "@/core/notification-queue"
+import { addToAnalyticsQueue, AnalyticsEventType } from "@/core/analytics-queue"
 
 const uploadFile = async (c: Context) => {
     const user = c.get("user") as IUserAttributes
     if (!user?.id) {
         return res.FailureResponse(c, 400, { message: "User not found" })
     }
-    try {
+    try {   
 
         const formData = await c.req.formData()
         const files = formData.getAll("files") as File[]
@@ -32,6 +33,23 @@ const uploadFile = async (c: Context) => {
                 data: { results },
                 related_user_id: user.id,
             })
+            
+            // Track upload analytics for each file
+            files.forEach((file, index) => {
+                const result = results[index];
+                if (result) {
+                    addToAnalyticsQueue({
+                        userId: user.id,
+                        eventType: AnalyticsEventType.FILE_UPLOADED,
+                        metadata: {
+                            fileName: file.name,
+                            fileSize: result.file_size,
+                            fileType: result.file_type,
+                            isFolder: false
+                        }
+                    });
+                }
+            });
         }
         return res.SuccessResponse(c, 200, {
             message: "File(s) uploaded successfully",
