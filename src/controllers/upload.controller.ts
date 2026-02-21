@@ -12,7 +12,7 @@ const uploadFile = async (c: Context) => {
     if (!user?.id) {
         return res.FailureResponse(c, 400, { message: "User not found" })
     }
-    try {   
+    try {
 
         const formData = await c.req.formData()
         const files = formData.getAll("files") as File[]
@@ -33,7 +33,7 @@ const uploadFile = async (c: Context) => {
                 data: { results },
                 related_user_id: user.id,
             })
-            
+
             // Track upload analytics for each file
             files.forEach((file, index) => {
                 const result = results[index];
@@ -177,7 +177,7 @@ const completeUpload = async (c: Context) => {
             file_type: metadata.contentType || '',
             storage_path: key
         }
-        
+
         if (user?.id) {
             const fileName = key.split('/').pop() || 'Unknown file'
             addToNotificationQueue({
@@ -195,7 +195,7 @@ const completeUpload = async (c: Context) => {
         return res.SuccessResponse(c, 200, {
             message: "Upload completed successfully",
             data: result
-        })        
+        })
     } catch (error: any) {
         if (user?.id) {
             const fileName = key.split('/').pop() || 'Unknown file'
@@ -287,7 +287,39 @@ const getPartsByUploadKey = async (c: Context) => {
     }
 }
 
+const getAllFiles = async (c: Context) => {
+    try {
+        const validatedQuery = c.get('validatedQuery') as {
+            folder?: string;
+            maxKeys?: number;
+            continuationToken?: string
+        };
+
+        const { folder, maxKeys = 100, continuationToken } = validatedQuery || {};
+
+        const result = await s3Service.getAllFiles(folder, maxKeys, continuationToken);
+        return res.SuccessResponse(c, 200, {
+            message: "All files retrieved successfully",
+            data: {
+                files: result.files,
+                pagination: {
+                    hasMore: result.isTruncated,
+                    nextContinuationToken: result.nextContinuationToken || null,
+                    maxKeys: maxKeys,
+                    currentCount: result.files.length
+                }
+            },
+        })
+    } catch (error: any) {
+        return res.FailureResponse(c, 500, {
+            message: "Failed to get all files",
+            error: error.message,
+        })
+    }
+}
+
 export default {
+    getAllFiles,
     getPartsByUploadKey,
     initiateUpload,
     uploadFile,
