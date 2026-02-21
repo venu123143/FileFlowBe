@@ -64,6 +64,11 @@ export class UploadRouter {
             validateParams(uploadValidation.fileNameValidation),
             uploadController.deleteFile
         )
+        this.router.get('/file/get-all-files', 
+            Middleware.authMiddleware,
+            validateQuery(uploadValidation.getAllFilesValidation),
+            uploadController.getAllFiles
+        )
     }
 
     public getRouter() {

@@ -7,6 +7,7 @@ import redisConn from "@/config/redis.config";
 import redisConstants from "@/global/redis-constants";
 import { getValidPinSession } from "@/core/session";
 import crypto from "crypto";
+import { UserRole } from "@/models/User.model";
 
 
 
@@ -149,6 +150,7 @@ const pinSessionMiddleware: MiddlewareHandler = async (c: Context, next: Next) =
         });
     }
 };
+
 
 export default {
     authMiddleware,
