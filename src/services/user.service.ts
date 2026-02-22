@@ -1,5 +1,4 @@
 import constants from "@/global/constants";
-import jwt from "@/utils/jwt-token";
 import { type IUserSessionAttributes } from "@/models/UserSession.model";
 import userRepository from "@/repository/user.repository";
 import { type IUserAttributes } from "@/models/User.model";

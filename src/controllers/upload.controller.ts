@@ -294,7 +294,6 @@ const getAllFiles = async (c: Context) => {
             maxKeys?: number;
             continuationToken?: string
         };
-
         const { folder, maxKeys = 100, continuationToken } = validatedQuery || {};
 
         const result = await s3Service.getAllFiles(folder, maxKeys, continuationToken);
@@ -311,6 +310,7 @@ const getAllFiles = async (c: Context) => {
             },
         })
     } catch (error: any) {
+        console.log("error", error);
         return res.FailureResponse(c, 500, {
             message: "Failed to get all files",
             error: error.message,

@@ -7,7 +7,7 @@ import redisConn from "@/config/redis.config";
 import redisConstants from "@/global/redis-constants";
 import { getValidPinSession } from "@/core/session";
 import crypto from "crypto";
-import { UserRole } from "@/models/User.model";
+import { UserRole, type IUserAttributes } from "@/models/User.model";
 
 
 
@@ -151,8 +151,28 @@ const pinSessionMiddleware: MiddlewareHandler = async (c: Context, next: Next) =
     }
 };
 
+function checkPermissions(roles: UserRole[]) {
+    return async (c: Context, next: Next) => {
+        const user = c.get('user') as IUserAttributes;
+
+        if (!user) {
+            return res.FailureResponse(c, 401, { message: "Unauthorized." });
+        }
+
+        if (!roles.includes(user.role)) {
+            return res.FailureResponse(c, 403, {
+                message: "Forbidden, you don't have permission to perform this action."
+            });
+        }
+
+        await next(); // ✅ IMPORTANT
+    };
+}
+
+
 
 export default {
     authMiddleware,
+    checkPermissions,
     pinSessionMiddleware,
 };
