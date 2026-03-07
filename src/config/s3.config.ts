@@ -53,7 +53,7 @@ export class S3Service {
     }
 
     public buildCDNUrl(key: string): string {
-        return `https://fileflow.fsn1.your-objectstorage.com/${key}`;
+        return `${config.S3.CDN_URL}/${key}`;
     }
 
     /**
