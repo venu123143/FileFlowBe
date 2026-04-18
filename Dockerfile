@@ -1,15 +1,21 @@
 # ============================
-# Single-stage Bun build
+# Single-stage Bun build (multi-arch: amd64 + arm64)
 # ============================
-FROM oven/bun:1.2.21-debian
+ARG TARGETPLATFORM
+FROM --platform=$TARGETPLATFORM oven/bun:1.2.21-debian
 
 WORKDIR /app
+
+# Install curl for the HEALTHCHECK (not present in the base image)
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends curl ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
 
 # Copy package files and Bun config
 COPY package.json bun.lock bunfig.toml ./
 
-# Install all dependencies (dev + prod)
-RUN bun install
+# Install all dependencies (dev + prod) using the lockfile for reproducible arm64 builds
+RUN bun install --frozen-lockfile
 
 # Copy the rest of the source code
 COPY . .
@@ -25,4 +31,4 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
   CMD curl -f http://localhost:7000/health || exit 1
 
 # Start Bun directly with TypeScript
-CMD ["bun", "run" , "src/index.ts"]
+CMD ["bun", "run", "src/index.ts"]
