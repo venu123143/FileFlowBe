@@ -11,9 +11,10 @@ type FavoriteListOptions = {
     search?: string;
     sortBy: FavoriteSortBy;
     sortOrder: SortOrder;
+    canAccessAllFiles?: boolean;
 };
 
-const favoriteInclude = (userId: string, search?: string) => ({
+const favoriteInclude = (userId: string, search?: string, canAccessAllFiles: boolean = false) => ({
     model: db.File,
     as: 'file',
     required: true,
@@ -33,28 +34,28 @@ const favoriteInclude = (userId: string, search?: string) => ({
         'updated_at',
     ],
     where: {
-        owner_id: userId,
         deleted_at: null,
+        ...(!canAccessAllFiles ? { owner_id: userId } : {}),
         ...(search ? { name: { [Op.iLike]: `%${search}%` } } : {}),
     },
 });
 
-const findOwnedFileById = async (fileId: string, userId: string) => {
+const findAccessibleFileById = async (fileId: string, userId: string, canAccessAllFiles: boolean = false) => {
     return db.File.findOne({
         where: {
             id: fileId,
-            owner_id: userId,
             deleted_at: null,
+            ...(!canAccessAllFiles ? { owner_id: userId } : {}),
         },
         attributes: ['id'],
     });
 };
 
-const findOwnedFileByStoragePath = async (storagePath: string, userId: string) => {
+const findAccessibleFileByStoragePath = async (storagePath: string, userId: string, canAccessAllFiles: boolean = false) => {
     return db.File.findOne({
         where: {
-            owner_id: userId,
             deleted_at: null,
+            ...(!canAccessAllFiles ? { owner_id: userId } : {}),
             file_info: {
                 storage_path: storagePath,
             },
@@ -78,7 +79,7 @@ const getFavorites = async (userId: string, options: FavoriteListOptions) => {
     const { rows, count } = await db.Favorite.findAndCountAll({
         where: { user_id: userId },
         attributes: ['id', 'user_id', 'file_id', 'created_at'],
-        include: [favoriteInclude(userId, options.search)],
+        include: [favoriteInclude(userId, options.search, options.canAccessAllFiles)],
         order,
         limit: safeLimit,
         offset,
@@ -96,29 +97,29 @@ const getFavorites = async (userId: string, options: FavoriteListOptions) => {
     };
 };
 
-const getFavoriteById = async (favoriteId: string, userId: string) => {
+const getFavoriteById = async (favoriteId: string, userId: string, canAccessAllFiles: boolean = false) => {
     return db.Favorite.findOne({
         where: {
             id: favoriteId,
             user_id: userId,
         },
         attributes: ['id', 'user_id', 'file_id', 'created_at'],
-        include: [favoriteInclude(userId)],
+        include: [favoriteInclude(userId, undefined, canAccessAllFiles)],
     });
 };
 
-const getFavoriteByFileId = async (fileId: string, userId: string) => {
+const getFavoriteByFileId = async (fileId: string, userId: string, canAccessAllFiles: boolean = false) => {
     return db.Favorite.findOne({
         where: {
             file_id: fileId,
             user_id: userId,
         },
         attributes: ['id', 'user_id', 'file_id', 'created_at'],
-        include: [favoriteInclude(userId)],
+        include: [favoriteInclude(userId, undefined, canAccessAllFiles)],
     });
 };
 
-const updateFavorite = async (favoriteId: string, userId: string, fileId: string) => {
+const updateFavorite = async (favoriteId: string, userId: string, fileId: string, canAccessAllFiles: boolean = false) => {
     const favorite = await db.Favorite.findOne({
         where: {
             id: favoriteId,
@@ -131,7 +132,7 @@ const updateFavorite = async (favoriteId: string, userId: string, fileId: string
     }
 
     await favorite.update({ file_id: fileId });
-    return getFavoriteById(favoriteId, userId);
+    return getFavoriteById(favoriteId, userId, canAccessAllFiles);
 };
 
 const deleteFavorite = async (favoriteId: string, userId: string) => {
@@ -153,8 +154,8 @@ const deleteFavoriteByFileId = async (fileId: string, userId: string) => {
 };
 
 export default {
-    findOwnedFileById,
-    findOwnedFileByStoragePath,
+    findAccessibleFileById,
+    findAccessibleFileByStoragePath,
     createFavorite,
     getFavorites,
     getFavoriteById,
