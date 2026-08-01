@@ -27,8 +27,8 @@ RUN bun run build
 EXPOSE 7000
 
 # Health check
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD curl -f http://localhost:7000/health || exit 1
+HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
+  CMD curl -fsS http://localhost:7000/health || exit 1
 
 # Start Bun directly with TypeScript
 CMD ["bun", "run", "src/index.ts"]
