@@ -50,6 +50,17 @@ export class App {
 
     private registerRoutes() {
         this.app.get("/", (c) => c.text("👋 Welcome to a FILE FLOW API."));
+        
+        // Health check endpoint for Docker
+        this.app.get("/health", (c) => {
+            const uptime = process.uptime();
+            return c.json({
+                status: "ok",
+                timestamp: new Date().toISOString(),
+                uptime: Math.floor(uptime)
+            });
+        });
+        
         this.app.route("/api/v1", new MainRouter().getRouter());
     }
 
