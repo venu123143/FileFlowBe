@@ -1,6 +1,6 @@
 import { type Context } from "hono";
 import res from "@/utils/response";
-import { AccessLevel, type FileAttributes } from "@/models/File.model";
+import { AccessLevel, type FileAttributes, File } from "@/models/File.model";
 import type { InferSchemaType } from "@/utils/validation";
 import fileDtoValidation from "@/validation/file.validation";
 import fileRepository from "@/repository/file.repository";
@@ -10,6 +10,7 @@ import db from "@/config/database";
 import type { ShareAttributes } from "@/models/Share.model";
 import { addToNotificationQueue } from "@/core/notification-queue";
 import { NotificationType } from "@/models/Notification.model";
+import { addToAnalyticsQueue, AnalyticsEventType } from "@/core/analytics-queue";
 
 
 const createFolder = async (c: Context) => {
@@ -30,6 +31,17 @@ const createFolder = async (c: Context) => {
         };
 
         const createdFolder = await fileRepository.createFolder(folder);
+        
+        // Track folder creation analytics
+        addToAnalyticsQueue({
+            userId: user.id,
+            eventType: AnalyticsEventType.FOLDER_CREATED,
+            metadata: {
+                folderName: value.name,
+                isFolder: true
+            }
+        });
+        
         return res.SuccessResponse(c, 201, { message: "Folder created successfully", data: createdFolder });
 
     } catch (error: any) {
@@ -116,6 +128,21 @@ const createFile = async (c: Context) => {
         };
         const createdFile = await fileRepository.createFile(file, transaction);
         await transaction.commit();
+        
+        // Track file upload analytics
+        if (value.file_info) {
+            addToAnalyticsQueue({
+                userId: user.id,
+                eventType: AnalyticsEventType.FILE_UPLOADED,
+                metadata: {
+                    fileName: value.name,
+                    fileSize: value.file_info.file_size,
+                    fileType: value.file_info.file_type,
+                    isFolder: false
+                }
+            });
+        }
+        
         return res.SuccessResponse(c, 201, { message: "File created successfully", data: createdFile });
 
     } catch (error) {
@@ -186,6 +213,13 @@ const deleteFileOrFolder = async (c: Context) => {
     try {
         const user = c.get('user') as IUserAttributes;
         const fileId = c.req.param('id');
+        
+        // Get file info before deleting for analytics
+        const file = await File.findOne({
+            where: { id: fileId, owner_id: user.id },
+            attributes: ['name', 'is_folder']
+        });
+        
         const deletedFile = await fileRepository.deleteFileOrFolder(fileId, user.id);
 
         addToNotificationQueue({
@@ -197,7 +231,20 @@ const deleteFileOrFolder = async (c: Context) => {
             created_at: new Date(),
             data: { deletedFile },
             related_user_id: user.id,
-        })
+        });
+        
+        // Track file deletion analytics (if file was found)
+        if (file) {
+            addToAnalyticsQueue({
+                userId: user.id,
+                eventType: AnalyticsEventType.FILE_DELETED,
+                metadata: {
+                    fileName: file.name,
+                    isFolder: file.is_folder
+                }
+            });
+        }
+        
         return res.SuccessResponse(c, 200, { message: "File/folder deleted successfully", data: { deletedFile } });
     } catch (error) {
         console.log(error);
@@ -231,10 +278,50 @@ const shareFileOrFolder = async (c: Context) => {
             created_at: new Date(),
             data: { sharedFile },
             related_user_id: user.id,
-        })
+        });
+        
+        // Track file share analytics
+        addToAnalyticsQueue({
+            userId: user.id,
+            eventType: AnalyticsEventType.FILE_SHARED,
+            metadata: {
+                fileId: fileId,
+                sharedWithUserId: value.shared_with_user_id
+            }
+        });
 
         return res.SuccessResponse(c, 200, { message: "File/folder shared successfully", data: { sharedFile } });
     } catch (error) {
+        console.log(error);
+        return res.FailureResponse(c, 500, { message: "Internal server error" });
+    }
+}
+
+const revokeShare = async (c: Context) => {
+    try {
+        const user = c.get('user') as IUserAttributes;
+        const shareId = c.req.param('shareId');
+
+        const deleted = await fileRepository.revokeShare(shareId, user.id);
+        if (deleted === 0) {
+            return res.FailureResponse(c, 404, { message: "Share not found or you do not have permission to revoke it" });
+        }
+
+        addToNotificationQueue({
+            user_id: user.id,
+            type: NotificationType.FILE_SHARE_REVOKED,
+            title: `${user.display_name} revoked a share`,
+            message: `Share has been revoked successfully`,
+            is_read: false,
+            created_at: new Date(),
+            data: { shareId, deleted },
+            related_user_id: user.id,
+        })
+        return res.SuccessResponse(c, 200, { message: "Share revoked successfully", data: {} });
+    } catch (error: any) {
+        if (error.message === 'Share not found or you do not have permission to revoke it') {
+            return res.FailureResponse(c, 404, { message: error.message });
+        }
         console.log(error);
         return res.FailureResponse(c, 500, { message: "Internal server error" });
     }
@@ -315,17 +402,17 @@ const updateFileAccessLevel = async (c: Context) => {
         const value = c.get<UpdateFileAccessLevelBody>('validated');
         const user = c.get('user') as IUserAttributes;
         const fileId = c.req.param('id');
-        
+
         const updatedCount = await fileRepository.updateFileAccessLevel(fileId, user.id, value.access_level);
-        
-        return res.SuccessResponse(c, 200, { 
-            message: "File access level updated successfully", 
-            data: { 
+
+        return res.SuccessResponse(c, 200, {
+            message: "File access level updated successfully",
+            data: {
                 updatedCount,
-                message: updatedCount > 1 
-                    ? `Updated ${updatedCount} items (folder and its contents)` 
+                message: updatedCount > 1
+                    ? `Updated ${updatedCount} items (folder and its contents)`
                     : 'Updated 1 item'
-            } 
+            }
         });
 
     } catch (error: any) {
@@ -360,6 +447,7 @@ export default {
     restoreFileOrFolder,
     deleteFileOrFolder,
     shareFileOrFolder,
+    revokeShare,
     getAllSharedFiles,
     getAllSharedFilesByMe,
     getAllSharedFilesWithMe,

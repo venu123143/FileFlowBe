@@ -5,6 +5,7 @@ import s3Service from "@/config/s3.config"
 import type { IUserAttributes } from "@/models/User.model"
 import { NotificationType, type IFileInfo } from "@/models"
 import { addToNotificationQueue } from "@/core/notification-queue"
+import { addToAnalyticsQueue, AnalyticsEventType } from "@/core/analytics-queue"
 
 const uploadFile = async (c: Context) => {
     const user = c.get("user") as IUserAttributes
@@ -32,6 +33,23 @@ const uploadFile = async (c: Context) => {
                 data: { results },
                 related_user_id: user.id,
             })
+
+            // Track upload analytics for each file
+            files.forEach((file, index) => {
+                const result = results[index];
+                if (result) {
+                    addToAnalyticsQueue({
+                        userId: user.id,
+                        eventType: AnalyticsEventType.FILE_UPLOADED,
+                        metadata: {
+                            fileName: file.name,
+                            fileSize: result.file_size,
+                            fileType: result.file_type,
+                            isFolder: false
+                        }
+                    });
+                }
+            });
         }
         return res.SuccessResponse(c, 200, {
             message: "File(s) uploaded successfully",
@@ -159,7 +177,7 @@ const completeUpload = async (c: Context) => {
             file_type: metadata.contentType || '',
             storage_path: key
         }
-        
+
         if (user?.id) {
             const fileName = key.split('/').pop() || 'Unknown file'
             addToNotificationQueue({
@@ -177,7 +195,7 @@ const completeUpload = async (c: Context) => {
         return res.SuccessResponse(c, 200, {
             message: "Upload completed successfully",
             data: result
-        })        
+        })
     } catch (error: any) {
         if (user?.id) {
             const fileName = key.split('/').pop() || 'Unknown file'
@@ -269,7 +287,39 @@ const getPartsByUploadKey = async (c: Context) => {
     }
 }
 
+const getAllFiles = async (c: Context) => {
+    try {
+        const validatedQuery = c.get('validatedQuery') as {
+            folder?: string;
+            maxKeys?: number;
+            continuationToken?: string
+        };
+        const { folder, maxKeys = 100, continuationToken } = validatedQuery || {};
+
+        const result = await s3Service.getAllFiles(folder, maxKeys, continuationToken);
+        return res.SuccessResponse(c, 200, {
+            message: "All files retrieved successfully",
+            data: {
+                files: result.files,
+                pagination: {
+                    hasMore: result.isTruncated,
+                    nextContinuationToken: result.nextContinuationToken || null,
+                    maxKeys: maxKeys,
+                    currentCount: result.files.length
+                }
+            },
+        })
+    } catch (error: any) {
+        console.log("error", error);
+        return res.FailureResponse(c, 500, {
+            message: "Failed to get all files",
+            error: error.message,
+        })
+    }
+}
+
 export default {
+    getAllFiles,
     getPartsByUploadKey,
     initiateUpload,
     uploadFile,

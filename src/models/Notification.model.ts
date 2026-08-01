@@ -3,6 +3,7 @@ import { DataTypes, Model, type Optional, Sequelize } from 'sequelize';
 // Updated NotificationType enum
 export enum NotificationType {
     FILE_SHARED = 'file_shared',
+    FILE_SHARE_REVOKED = 'file_share_revoked',
     FILE_UPDATED = 'file_updated',
     FILE_UPLOAD_COMPLETED = 'file_upload_completed',
     FILE_UPLOAD_FAILED = 'file_upload_failed',

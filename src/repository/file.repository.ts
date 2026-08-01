@@ -3,6 +3,7 @@ import { type FileAttributes, AccessLevel } from "@/models/File.model"
 import { Op, QueryTypes, type Transaction, literal } from "sequelize";
 import { type FileSystemNode, type SharedFileSystemNode } from "@/types/file.types";
 import { type ShareAttributes } from "@/models/Share.model";
+import s3Service from "@/config/s3.config";
 
 const createFolder = async (value: FileAttributes) => {
   const folder = await db.File.create(value);
@@ -126,6 +127,18 @@ const deleteFileOrFolder = async (fileId: string, userId: string) => {
 const shareFileOrFolder = async (share: ShareAttributes) => {
   const file = await db.Share.create(share);
   return file;
+};
+
+const revokeShare = async (shareId: string, userId: string) => {
+  // Only allow the owner (shared_by_user_id) to revoke the share
+  const deleted = await db.Share.destroy({
+    where: {
+      id: shareId,
+      shared_by_user_id: userId
+    }
+  });
+
+  return deleted;
 };
 
 
@@ -506,15 +519,79 @@ const getAllSharedFilesSingleQuery = async (userId: string): Promise<{
   };
 };
 
+/**
+ * Recursively find all descendant file IDs of a parent folder
+ */
+async function getAllChildFileIds(parentIds: string[]): Promise<string[]> {
+  const children = await db.File.findAll({
+    where: {
+      parent_id: {
+        [Op.in]: parentIds,
+      },
+    },
+    attributes: ["id"],
+    raw: true,
+  });
+
+  if (!children.length) return [];
+
+  const childIds = children.map(c => c.id);
+  const grandChildIds = await getAllChildFileIds(childIds);
+
+  return [...childIds, ...grandChildIds];
+}
+
 const emptyTrash = async (userId: string) => {
-  const deletedFiles = await db.File.destroy({
+  // Get all deleted files/folders for the user
+  const deletedFiles = await db.File.findAll({
     where: {
       owner_id: userId,
       deleted_at: { [Op.ne]: null }
     },
-    force: true
+    attributes: ["id"],
+    raw: true,
   });
-  return deletedFiles;
+
+  if (!deletedFiles.length) return 0;
+
+  let allToDelete: string[] = deletedFiles.map(f => f.id);
+
+  // Get all child files/folders recursively
+  const childIds = await getAllChildFileIds(allToDelete);
+  allToDelete = [...new Set([...allToDelete, ...childIds])];
+
+  // Get only actual files (not folders) for S3 deletion
+  const filesToDelete = await db.File.findAll({
+    where: {
+      id: {
+        [Op.in]: allToDelete,
+      },
+      is_folder: false,
+    },
+    attributes: ["file_info"],
+    raw: true,
+  });
+
+  // Extract S3 keys and delete from storage
+  const s3Keys = filesToDelete
+    .map(f => f.file_info?.storage_path)
+    .filter(Boolean) as string[];
+
+  if (s3Keys.length) {
+    await s3Service.deleteFiles(s3Keys);
+  }
+
+  // Delete all records from database (hard delete)
+  const deletedCount = await db.File.destroy({
+    where: {
+      id: {
+        [Op.in]: allToDelete,
+      },
+    },
+    force: true,
+  });
+
+  return deletedCount;
 };
 
 const getRecents = async (userId: string, page: number = 1, limit: number = 20) => {
@@ -606,6 +683,7 @@ export default {
   restoreFileOrFolder,
   deleteFileOrFolder,
   shareFileOrFolder,
+  revokeShare,
   getAllSharedFiles,
   getAllSharedFilesByMe,
   getAllSharedFilesWithMe,

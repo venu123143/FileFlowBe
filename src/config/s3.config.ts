@@ -53,7 +53,20 @@ export class S3Service {
     }
 
     public buildCDNUrl(key: string): string {
-        return `https://${config.CLOUDFLARE.CDN_DOMAIN}/${key}`;
+        return `${config.S3.CDN_URL}/${key}`;
+    }
+
+    /**
+     * Sanitizes metadata values to ensure they're valid for HTTP headers.
+     * HTTP headers cannot contain certain characters like non-ASCII, control characters, etc.
+     */
+    private sanitizeMetadataValue(value: string): string {
+        // Replace non-ASCII and control characters with safe equivalents
+        // Keep only alphanumeric, spaces, hyphens, underscores, and periods
+        return value
+            .replace(/[^\x20-\x7E]/g, '') // Remove non-printable ASCII
+            .replace(/[<>:"/\\|?*\x00-\x1F]/g, '_') // Replace invalid chars with underscore
+            .substring(0, 2000); // AWS metadata value limit is 2KB
     }
 
     private calculateChunkChecksum(chunkBuffer: Buffer<ArrayBuffer>): string {
@@ -63,13 +76,16 @@ export class S3Service {
     }
 
     public async uploadFile(file: IFile): Promise<string> {
+        // Sanitize original name for HTTP header compatibility
+        const sanitizedOriginalName = this.sanitizeMetadataValue(file.originalName);
+
         const params: PutObjectCommandInput = {
             Bucket: config.S3.BUCKET_NAME,
             Key: `${FolderNameEnum.FILES}/${file.filename}`,
             Body: file.buffer,
             ContentType: file.mimetype,
             Metadata: {
-                originalName: file.originalName,
+                originalName: sanitizedOriginalName,
                 uploadedAt: new Date().toISOString(),
                 size: file.size.toString(),
             },
@@ -88,15 +104,47 @@ export class S3Service {
         folder: FolderNameEnum = FolderNameEnum.FILES
     ): Promise<string> {
         const path = `${folder}/${key}`;
+        // Sanitize original name for HTTP header compatibility
+        const sanitizedOriginalName = this.sanitizeMetadataValue(fileName);
+
         const params = {
             Bucket: config.S3.BUCKET_NAME,
             Key: path,
             Body: buffer,
             ContentType: mimeType,
             Metadata: {
-                originalName: fileName,
+                originalName: sanitizedOriginalName,
                 uploadedAt: new Date().toISOString(),
                 size: buffer.length.toString(),
+            },
+            CacheControl: 'public, max-age=31536000',
+        };
+
+        await this.s3Client.send(new PutObjectCommand(params));
+        return this.buildCDNUrl(path);
+    }
+
+    public async uploadStream(
+        key: string,
+        stream: any,
+        fileName: string,
+        mimeType: string,
+        size: number,
+        folder: FolderNameEnum = FolderNameEnum.FILES
+    ): Promise<string> {
+        const path = `${folder}/${key}`;
+        const sanitizedOriginalName = this.sanitizeMetadataValue(fileName);
+
+        const params = {
+            Bucket: config.S3.BUCKET_NAME,
+            Key: path,
+            Body: stream,
+            ContentType: mimeType,
+            ContentLength: size, // Required for streaming
+            Metadata: {
+                originalName: sanitizedOriginalName,
+                uploadedAt: new Date().toISOString(),
+                size: size.toString(),
             },
             CacheControl: 'public, max-age=31536000',
         };
@@ -163,11 +211,30 @@ export class S3Service {
                 size: obj.Size!,
                 lastModified: obj.LastModified!,
                 etag: obj.ETag!,
-                cdnUrl: this.buildCDNUrl(obj.Key!)
+                storageClass: obj.StorageClass,
+                owner: obj.Owner ? {
+                    displayName: obj.Owner.DisplayName,
+                    id: obj.Owner.ID
+                } : undefined,
+                cdnUrl: this.buildCDNUrl(obj.Key!),
+                // Include all other S3 properties
+                ...(obj as any)
             })) || [],
             isTruncated: response.IsTruncated || false,
             nextContinuationToken: response.NextContinuationToken,
+            keyCount: response.KeyCount,
+            maxKeys: response.MaxKeys,
+            prefix: response.Prefix,
+            delimiter: response.Delimiter,
+            encodingType: response.EncodingType,
+            commonPrefixes: response.CommonPrefixes,
         };
+    }
+
+    public async getAllFiles(folder?: string, maxKeys: number = 100, continuationToken?: string) {
+        // Convert string folder name to FolderNameEnum if provided
+        const folderEnum = folder ? (folder as FolderNameEnum) : undefined;
+        return await this.listFiles(folderEnum, maxKeys, continuationToken);
     }
 
     public async initiateMultipartUpload(fileName: string, mimeType: string): Promise<{ uploadId: string | undefined; key: string }> {
