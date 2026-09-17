@@ -26,6 +26,8 @@ export class AuthRouter {
         this.router.post('/user/set-pin', AuthMiddleware.authMiddleware, validateBody(userDtoValidation.setPinValidation), AuthController.setPin);
         this.router.put('/user/change-pin', AuthMiddleware.authMiddleware, validateBody(userDtoValidation.changePinValidation), AuthController.changePin);
         this.router.get('/user/get-session', AuthMiddleware.authMiddleware, AuthMiddleware.pinSessionMiddleware, AuthController.getSession);
+        // No pinSessionMiddleware here: an expired PIN session must still be clearable.
+        this.router.post('/user/revoke-session', AuthMiddleware.authMiddleware, AuthController.revokeSession);
     }
 
     /**
