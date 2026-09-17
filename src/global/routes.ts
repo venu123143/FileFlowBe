@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { AuthRouter } from "@/routes/user.routes";
 import { FileRouter } from "@/routes/file.routes";
+import { BulkFileRouter } from "@/routes/bulk-file.routes";
 import { UploadRouter } from "@/routes/upload.routes";
 import { NotificationRouter } from "@/routes/notification.routes";
 import { ApiTokenRouter } from "@/routes/api-token.routes";
@@ -18,6 +19,7 @@ export class MainRouter {
     private initializeRoutes() {
         this.router.route("/auth", new AuthRouter().getRouter());
         this.router.route("/file-flow", new FileRouter().getRouter());
+        this.router.route("/file-flow-bulk", new BulkFileRouter().getRouter());
         this.router.route("/upload", new UploadRouter().getRouter());
         this.router.route("/notification", new NotificationRouter().getRouter());
         this.router.route("/api-token", new ApiTokenRouter().getRouter());

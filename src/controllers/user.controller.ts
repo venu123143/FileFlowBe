@@ -5,7 +5,7 @@ import userDtoValidation from "@/validation/user.validation";
 import userRepository from "@/repository/user.repository";
 import userService from "@/services/user.service";
 import type { IUserAttributes } from "@/models/User.model";
-import { getValidPinSession, setSessionData, type PinSessionData } from "@/core/session";
+import { getValidPinSession, getSessionData, removeSessionData, setSessionData, type PinSessionData } from "@/core/session";
 
 
 /**
@@ -285,6 +285,47 @@ const getSession = async (c: Context) => {
 }
 
 
+/**
+ * POST /auth/user/revoke-session
+ *
+ * Clears the PIN session, re-locking private files. The login session is left
+ * alone -- this is the counterpart to verifyPin, not a logout.
+ *
+ * Deliberately NOT behind pinSessionMiddleware: an already-expired session must
+ * still be clearable (that middleware would answer 403 and leave the cookie in
+ * place), and revoking twice is a no-op rather than an error.
+ */
+const revokeSession = async (c: Context) => {
+    try {
+        const user = c.get('user') as IUserAttributes;
+        if (!user) {
+            return res.FailureResponse(c, 401, { message: "User not authenticated." });
+        }
+
+        const session = c.get('session');
+        if (!session) {
+            return res.FailureResponse(c, 401, { message: "Session not available." });
+        }
+
+        // Read the raw value rather than getValidPinSession: that helper deletes
+        // an expired session as a side effect, and we only want to report whether
+        // there was anything to revoke.
+        const pinSession = await getSessionData<PinSessionData>(session, 'pin_session');
+
+        await removeSessionData(session);
+
+        return res.SuccessResponse(c, 200, {
+            message: "PIN session revoked successfully",
+            data: { was_active: Boolean(pinSession?.pin_verified) }
+        });
+    } catch (error) {
+        return res.FailureResponse(c, 500, {
+            message: "Internal server error",
+            error: error instanceof Error ? error.message : "Unknown error"
+        });
+    }
+}
+
 export default {
     Signup,
     Login,
@@ -294,5 +335,6 @@ export default {
     logoutAll,
     setPin,
     changePin,
-    getSession
+    getSession,
+    revokeSession
 }
