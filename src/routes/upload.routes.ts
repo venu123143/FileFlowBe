@@ -4,6 +4,7 @@ import { uploadImageMiddleware } from '@/middleware/multer.middleware' // rewrit
 import uploadController from "@/controllers/upload.controller";
 import { validateBody, validateQuery, validateParams } from "@/utils/validation";
 import uploadValidation from "@/validation/upload.validation";
+import { UserRole } from "@/models";
 
 export class UploadRouter {
     /** Each router owns its own Hono instance */
@@ -17,52 +18,58 @@ export class UploadRouter {
 
     private MultipartUpload() {
         // Multipart upload
-        this.router.post('/initiate', 
-            Middleware.authMiddleware, 
-            validateBody(uploadValidation.initiateUploadValidation), 
+        this.router.post('/initiate',
+            Middleware.authMiddleware,
+            validateBody(uploadValidation.initiateUploadValidation),
             uploadController.initiateUpload
         )
-        this.router.post('/chunk/file/:uploadId', 
-            Middleware.authMiddleware, 
+        this.router.post('/chunk/file/:uploadId',
+            Middleware.authMiddleware,
             validateParams(uploadValidation.uploadIdValidation),
             uploadController.uploadChunk
         )
-        this.router.post('/complete/file/:uploadId', 
-            Middleware.authMiddleware, 
+        this.router.post('/complete/file/:uploadId',
+            Middleware.authMiddleware,
             validateParams(uploadValidation.uploadIdValidation),
-            validateBody(uploadValidation.completeUploadValidation), 
+            validateBody(uploadValidation.completeUploadValidation),
             uploadController.completeUpload
         )
-        this.router.post('/abort/file/:uploadId', 
-            Middleware.authMiddleware, 
+        this.router.post('/abort/file/:uploadId',
+            Middleware.authMiddleware,
             validateParams(uploadValidation.uploadIdValidation),
-            validateBody(uploadValidation.abortUploadValidation), 
+            validateBody(uploadValidation.abortUploadValidation),
             uploadController.abortUpload
         )
-        this.router.get('/parts/file/:uploadId', 
-            Middleware.authMiddleware, 
+        this.router.get('/parts/file/:uploadId',
+            Middleware.authMiddleware,
             validateParams(uploadValidation.uploadIdValidation),
-            validateQuery(uploadValidation.getPartsValidation), 
+            validateQuery(uploadValidation.getPartsValidation),
             uploadController.getPartsByUploadKey
         )
     }
 
     private UploadImagesOrFiles() {
         // Image upload (max 5 files)
-        this.router.post('/file', 
-            Middleware.authMiddleware, 
-            uploadImageMiddleware, 
+        this.router.post('/file',
+            Middleware.authMiddleware,
+            uploadImageMiddleware,
             uploadController.uploadFile
         )
-        this.router.get('/file/get-file', 
-            Middleware.authMiddleware, 
+        this.router.get('/file/get-file',
+            Middleware.authMiddleware,
             validateQuery(uploadValidation.fileNameValidation),
             uploadController.getFiles
         )
-        this.router.delete('/file/:fileName', 
-            Middleware.authMiddleware, 
+        this.router.delete('/file/:fileName',
+            Middleware.authMiddleware,
             validateParams(uploadValidation.fileNameValidation),
             uploadController.deleteFile
+        )
+        this.router.get('/file/get-all-files',
+            Middleware.authMiddleware,
+            Middleware.checkPermissions([UserRole.ADMIN]),
+            validateQuery(uploadValidation.getAllFilesValidation),
+            uploadController.getAllFiles
         )
     }
 

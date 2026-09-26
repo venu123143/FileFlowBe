@@ -8,7 +8,8 @@ export const corsOptions = {
         "http://localhost:3001",
         "http://localhost:5000",
         "http://localhost:5173",
-        "https://fileflow.nerchuko.in"
+        "https://fileflow.nerchuko.in",
+        "http://192.168.0.8:5173",
     ],
     credentials: true,
     exposedHeaders: ["sessionid", "logintoken", "resettoken", "ratelimit-remaining"],
