@@ -542,25 +542,32 @@ async function getAllChildFileIds(parentIds: string[]): Promise<string[]> {
 }
 
 const emptyTrash = async (userId: string) => {
-  // Get all deleted files/folders for the user
+  // 1. Get deleted root files/folders
   const deletedFiles = await db.File.findAll({
     where: {
       owner_id: userId,
-      deleted_at: { [Op.ne]: null }
+      deleted_at: {
+        [Op.ne]: null,
+      },
     },
     attributes: ["id"],
+    paranoid: false,
     raw: true,
   });
 
   if (!deletedFiles.length) return 0;
 
-  let allToDelete: string[] = deletedFiles.map(f => f.id);
+  // 2. Get all child files/folders recursively
+  const rootIds = deletedFiles.map((file) => file.id);
 
-  // Get all child files/folders recursively
-  const childIds = await getAllChildFileIds(allToDelete);
-  allToDelete = [...new Set([...allToDelete, ...childIds])];
+  const childIds = await getAllChildFileIds(rootIds);
 
-  // Get only actual files (not folders) for S3 deletion
+  // 3. Combine parents + all children
+  const allToDelete = [...new Set([...rootIds, ...childIds])];
+
+  console.log(allToDelete, "allToDelete");
+
+  // 4. Get actual files for S3 deletion
   const filesToDelete = await db.File.findAll({
     where: {
       id: {
@@ -569,19 +576,21 @@ const emptyTrash = async (userId: string) => {
       is_folder: false,
     },
     attributes: ["file_info"],
+    paranoid: false,
     raw: true,
   });
 
-  // Extract S3 keys and delete from storage
+  // 5. Extract storage paths
   const s3Keys = filesToDelete
-    .map(f => f.file_info?.storage_path)
+    .map((file) => file.file_info?.storage_path)
     .filter(Boolean) as string[];
 
+  // 6. Delete actual files from S3/storage
   if (s3Keys.length) {
     await s3Service.deleteFiles(s3Keys);
   }
 
-  // Delete all records from database (hard delete)
+  // 7. Hard-delete BOTH folders and files from database
   const deletedCount = await db.File.destroy({
     where: {
       id: {
