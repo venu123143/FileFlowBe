@@ -46,6 +46,9 @@ export class AuthRouter {
 
         // GET /auth/sessions - Get all active sessions for the authenticated user
         this.router.get('/sessions', AuthMiddleware.authMiddleware, TokenAuthController.getActiveSessions);
+
+        // DELETE /auth/sessions/:id - Revoke one of the user's own sessions
+        this.router.delete('/sessions/:id', AuthMiddleware.authMiddleware, TokenAuthController.revokeSessionById);
     }
 
     public getRouter() {

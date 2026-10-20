@@ -32,6 +32,7 @@ const verifyBearerToken = async (c: Context, token: string, next: Next) => {
 
         // Attach the user object to the context for downstream handlers
         c.set("user", find_user);
+        c.set("session_id", jwt_decode.sid ?? null);
         await next();
     } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error);

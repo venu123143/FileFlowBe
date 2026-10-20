@@ -126,7 +126,7 @@ const logout = async (c: Context) => {
         }
 
         // Perform logout (deactivate session in DB and remove from Redis)
-        const logoutSuccess = await userService.logout(user.id, sessionToken);
+        const logoutSuccess = await userService.logout(user.id, sessionToken, c.get('session_id'));
 
         if (!logoutSuccess) {
             return res.FailureResponse(c, 500, {

@@ -14,5 +14,6 @@ declare module 'hono' {
         user: User | null;
         validated: T; // will be inferred and narrowed by the schema in runtime
         user_id: string;
+        session_id: string | null;
     }
 }
