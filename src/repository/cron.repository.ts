@@ -2,6 +2,7 @@ import db from "@/config/database"
 import { Op } from "sequelize";
 import constants from "@/global/constants";
 import s3Service from "@/config/s3.config";
+import fileService from "@/services/file.service";
 
 async function removeAllExpiredTokens() {
     const expirationTime = new Date();
@@ -58,10 +59,12 @@ async function getAllChildFileIds(parentIds: string[]): Promise<string[]> {
 /**
  * Remove all files/folders that have been in trash for > 30 days
  */
-async function removeOldDeletedFiles() {
+async function removeOldDeletedFiles(): Promise<string[]> {
     const cutoffDate = new Date();
+
     cutoffDate.setDate(cutoffDate.getDate() - constants.FILE_TRASH_EXPIRY_TIME);
 
+    // 1. Get all root files/folders that are expired in trash
     const expiredFiles = await db.File.findAll({
         where: {
             deleted_at: {
@@ -69,17 +72,28 @@ async function removeOldDeletedFiles() {
             },
         },
         attributes: ["id"],
+        paranoid: false,
         raw: true,
     });
 
-    if (!expiredFiles.length) return [];
+    if (!expiredFiles.length) {
+        return [];
+    }
 
-    let allToDelete: string[] = expiredFiles.map(f => f.id);
+    // 2. Get root IDs
+    const rootIds: string[] = expiredFiles.map((file) => file.id);
 
-    // 🚀 Single batched call instead of loop
-    const childIds = await getAllChildFileIds(allToDelete);
-    allToDelete = [...new Set([...allToDelete, ...childIds])]; // Dedupe in one step
+    // 3. Get all children recursively
+    const childIds = await getAllChildFileIds(rootIds);
 
+    // 4. Combine roots + children and remove duplicates
+    const allToDelete: string[] = [
+        ...new Set([...rootIds, ...childIds]),
+    ];
+
+    console.log(`[${fileService.getISTTime()}] Found ${rootIds.length} expired root items and ${childIds.length} child items`);
+
+    // 5. Get only actual files for S3 deletion
     const filesToDelete = await db.File.findAll({
         where: {
             id: {
@@ -88,18 +102,23 @@ async function removeOldDeletedFiles() {
             is_folder: false,
         },
         attributes: ["file_info"],
+        paranoid: false,
         raw: true,
     });
 
-    const s3Keys = filesToDelete
-        .map(f => f.file_info?.storage_path)
-        .filter(Boolean) as string[];
+    // 6. Extract S3 storage paths
+    const s3Keys = filesToDelete.map((file) => file.file_info?.storage_path).filter(Boolean) as string[];
 
+    // 7. Delete physical files from S3/storage
     if (s3Keys.length) {
         await s3Service.deleteFiles(s3Keys);
+
+        console.log(`[${fileService.getISTTime()}] Deleted ${s3Keys.length} files from storage`);
     }
 
-    await db.File.destroy({
+    // 8. Permanently delete ALL database records
+    //    This includes both files AND folders.
+    const deletedCount = await db.File.destroy({
         where: {
             id: {
                 [Op.in]: allToDelete,
@@ -107,6 +126,8 @@ async function removeOldDeletedFiles() {
         },
         force: true,
     });
+
+    console.log(`[${fileService.getISTTime()}] Permanently deleted ${deletedCount} database records`);
 
     return allToDelete;
 }

@@ -6,6 +6,7 @@ import { secureHeaders } from "hono/secure-headers";
 import { Server } from "socket.io";
 import { instrument } from "@socket.io/admin-ui";
 import { Server as Engine } from "@socket.io/bun-engine";
+import { HTTPException } from "hono/http-exception";
 import { corsOptions, csrfMiddleware } from "@/utils/cors-options";
 import { MainRouter } from "@/global/routes";
 import "@/config/database";
@@ -50,6 +51,17 @@ export class App {
 
     private registerRoutes() {
         this.app.get("/", (c) => c.text("👋 Welcome to a FILE FLOW API."));
+        
+        // Health check endpoint for Docker
+        this.app.get("/health", (c) => {
+            const uptime = process.uptime();
+            return c.json({
+                status: "ok",
+                timestamp: new Date().toISOString(),
+                uptime: Math.floor(uptime)
+            });
+        });
+        
         this.app.route("/api/v1", new MainRouter().getRouter());
     }
 
@@ -60,6 +72,11 @@ export class App {
 
     private registerErrorHandler() {
         this.app.onError((err, c) => {
+            winston.loggerInstance.error(`Unhandled error on ${c.req.method} ${c.req.path}`, err);
+            if (err instanceof HTTPException) {
+                return err.getResponse();
+            }
+
             return c.text("Internal Server Error", 500);
         });
     }

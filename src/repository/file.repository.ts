@@ -3,13 +3,22 @@ import { type FileAttributes, AccessLevel } from "@/models/File.model"
 import { Op, QueryTypes, type Transaction, literal } from "sequelize";
 import { type FileSystemNode, type SharedFileSystemNode } from "@/types/file.types";
 import { type ShareAttributes } from "@/models/Share.model";
+import s3Service from "@/config/s3.config";
 
 const createFolder = async (value: FileAttributes) => {
   const folder = await db.File.create(value);
   return folder;
 }
 
-const updateLastAccessed = async (file_id: string, owner_id: string) => {
+// Includes soft-deleted rows, since the unique index on files covers them too
+const findExisting = async (ownerId: string, name: string, parentId: string | null | undefined, isFolder: boolean) => {
+  return await db.File.findOne({
+    where: { owner_id: ownerId, name, parent_id: parentId ?? null, is_folder: isFolder },
+    paranoid: false,
+  });
+}
+
+const updateLastAccessed =async (file_id: string, owner_id: string) => {
   return await db.File.update({ last_accessed_at: new Date() }, { where: { id: file_id, owner_id: owner_id } })
 }
 
@@ -126,6 +135,18 @@ const deleteFileOrFolder = async (fileId: string, userId: string) => {
 const shareFileOrFolder = async (share: ShareAttributes) => {
   const file = await db.Share.create(share);
   return file;
+};
+
+const revokeShare = async (shareId: string, userId: string) => {
+  // Only allow the owner (shared_by_user_id) to revoke the share
+  const deleted = await db.Share.destroy({
+    where: {
+      id: shareId,
+      shared_by_user_id: userId
+    }
+  });
+
+  return deleted;
 };
 
 
@@ -506,15 +527,88 @@ const getAllSharedFilesSingleQuery = async (userId: string): Promise<{
   };
 };
 
+/**
+ * Recursively find all descendant file IDs of a parent folder
+ */
+async function getAllChildFileIds(parentIds: string[]): Promise<string[]> {
+  const children = await db.File.findAll({
+    where: {
+      parent_id: {
+        [Op.in]: parentIds,
+      },
+    },
+    attributes: ["id"],
+    raw: true,
+  });
+
+  if (!children.length) return [];
+
+  const childIds = children.map(c => c.id);
+  const grandChildIds = await getAllChildFileIds(childIds);
+
+  return [...childIds, ...grandChildIds];
+}
+
 const emptyTrash = async (userId: string) => {
-  const deletedFiles = await db.File.destroy({
+  // 1. Get deleted root files/folders
+  const deletedFiles = await db.File.findAll({
     where: {
       owner_id: userId,
-      deleted_at: { [Op.ne]: null }
+      deleted_at: {
+        [Op.ne]: null,
+      },
     },
-    force: true
+    attributes: ["id"],
+    paranoid: false,
+    raw: true,
   });
-  return deletedFiles;
+
+  if (!deletedFiles.length) return 0;
+
+  // 2. Get all child files/folders recursively
+  const rootIds = deletedFiles.map((file) => file.id);
+
+  const childIds = await getAllChildFileIds(rootIds);
+
+  // 3. Combine parents + all children
+  const allToDelete = [...new Set([...rootIds, ...childIds])];
+
+  console.log(allToDelete, "allToDelete");
+
+  // 4. Get actual files for S3 deletion
+  const filesToDelete = await db.File.findAll({
+    where: {
+      id: {
+        [Op.in]: allToDelete,
+      },
+      is_folder: false,
+    },
+    attributes: ["file_info"],
+    paranoid: false,
+    raw: true,
+  });
+
+  // 5. Extract storage paths
+  const s3Keys = filesToDelete
+    .map((file) => file.file_info?.storage_path)
+    .filter(Boolean) as string[];
+
+  // 6. Delete actual files from S3/storage
+  if (s3Keys.length) {
+    await s3Service.deleteFiles(s3Keys);
+  }
+
+  // 7. Hard-delete BOTH folders and files from database
+  const deletedCount = await db.File.destroy({
+    where: {
+      id: {
+        [Op.in]: allToDelete,
+      },
+    },
+    force: true,
+  });
+
+  return deletedCount;
 };
 
 const getRecents = async (userId: string, page: number = 1, limit: number = 20) => {
@@ -601,11 +695,13 @@ export default {
   renameFolder,
   moveFileOrFile,
   createFile,
+  findExisting,
   getFileSystemTree,
   getTrash,
   restoreFileOrFolder,
   deleteFileOrFolder,
   shareFileOrFolder,
+  revokeShare,
   getAllSharedFiles,
   getAllSharedFilesByMe,
   getAllSharedFilesWithMe,

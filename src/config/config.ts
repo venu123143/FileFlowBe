@@ -38,6 +38,7 @@ interface Config {
         ENDPOINT: string;
         BUCKET_NAME: string;
         REGION: string;
+        CDN_URL: string;
     };
     CLOUDFLARE: {
         CDN_DOMAIN: string;
@@ -78,6 +79,7 @@ const config: Config = {
         ENDPOINT: process.env.S3_ENDPOINT!,
         BUCKET_NAME: process.env.S3_BUCKET_NAME!,
         REGION: process.env.S3_REGION!,
+        CDN_URL: process.env.S3_CDN_URL!,
     },
     CLOUDFLARE: {
         CDN_DOMAIN: process.env.CLOUDFLARE_CDN_DOMAIN!,

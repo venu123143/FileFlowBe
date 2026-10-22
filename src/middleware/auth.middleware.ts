@@ -7,6 +7,7 @@ import redisConn from "@/config/redis.config";
 import redisConstants from "@/global/redis-constants";
 import { getValidPinSession } from "@/core/session";
 import crypto from "crypto";
+import { UserRole, type IUserAttributes } from "@/models/User.model";
 
 
 
@@ -31,6 +32,7 @@ const verifyBearerToken = async (c: Context, token: string, next: Next) => {
 
         // Attach the user object to the context for downstream handlers
         c.set("user", find_user);
+        c.set("session_id", jwt_decode.sid ?? null);
         await next();
     } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error);
@@ -150,7 +152,28 @@ const pinSessionMiddleware: MiddlewareHandler = async (c: Context, next: Next) =
     }
 };
 
+function checkPermissions(roles: UserRole[]) {
+    return async (c: Context, next: Next) => {
+        const user = c.get('user') as IUserAttributes;
+
+        if (!user) {
+            return res.FailureResponse(c, 401, { message: "Unauthorized." });
+        }
+
+        if (!roles.includes(user.role)) {
+            return res.FailureResponse(c, 403, {
+                message: "Forbidden, you don't have permission to perform this action."
+            });
+        }
+
+        await next(); // ✅ IMPORTANT
+    };
+}
+
+
+
 export default {
     authMiddleware,
+    checkPermissions,
     pinSessionMiddleware,
 };

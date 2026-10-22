@@ -1,5 +1,4 @@
 import constants from "@/global/constants";
-import jwt from "@/utils/jwt-token";
 import { type IUserSessionAttributes } from "@/models/UserSession.model";
 import userRepository from "@/repository/user.repository";
 import { type IUserAttributes } from "@/models/User.model";
@@ -38,7 +37,12 @@ async function generateSession(user: IUserAttributes, metadata?: Record<string, 
     };
 }
 
-async function logout(userId: string, sessionToken: string): Promise<boolean> {
+async function logout(userId: string, sessionToken: string, sessionId?: string | null): Promise<boolean> {
+    // Revoke this device's refresh session so it stops showing as active
+    if (sessionId) {
+        await authService.revokeSession(userId, sessionId);
+    }
+
     // 1. Delete session from database completely
     // await userRepository.deleteSessionByToken(sessionToken);
 
