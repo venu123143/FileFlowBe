@@ -52,8 +52,12 @@ const createFolder = async (c: Context) => {
             });
         }
         if (error instanceof UniqueConstraintError) {
+            const value = c.get('validated') as { name: string; parent_id?: string | null };
+            const user = c.get('user') as IUserAttributes;
+            const existing = await fileRepository.findExisting(user.id, value.name, value.parent_id, true);
             return res.FailureResponse(c, 409, {
-                message: "A folder with this name already exists in the same location."
+                message: "A folder with this name already exists in the same location.",
+                data: existing
             });
         }
         return res.FailureResponse(c, 500, { message: "Internal server error" });
@@ -153,8 +157,12 @@ const createFile = async (c: Context) => {
             });
         }
         if (error instanceof UniqueConstraintError) {
+            const value = c.get('validated') as { name: string; parent_id?: string | null };
+            const user = c.get('user') as IUserAttributes;
+            const existing = await fileRepository.findExisting(user.id, value.name, value.parent_id, false);
             return res.FailureResponse(c, 409, {
-                message: "A folder/file with this name already exists in the same location."
+                message: "A folder/file with this name already exists in the same location.",
+                data: existing
             });
         }
         return res.FailureResponse(c, 500, { message: "Internal server error" });

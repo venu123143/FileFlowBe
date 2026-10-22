@@ -10,7 +10,15 @@ const createFolder = async (value: FileAttributes) => {
   return folder;
 }
 
-const updateLastAccessed = async (file_id: string, owner_id: string) => {
+// Includes soft-deleted rows, since the unique index on files covers them too
+const findExisting = async (ownerId: string, name: string, parentId: string | null | undefined, isFolder: boolean) => {
+  return await db.File.findOne({
+    where: { owner_id: ownerId, name, parent_id: parentId ?? null, is_folder: isFolder },
+    paranoid: false,
+  });
+}
+
+const updateLastAccessed =async (file_id: string, owner_id: string) => {
   return await db.File.update({ last_accessed_at: new Date() }, { where: { id: file_id, owner_id: owner_id } })
 }
 
@@ -687,6 +695,7 @@ export default {
   renameFolder,
   moveFileOrFile,
   createFile,
+  findExisting,
   getFileSystemTree,
   getTrash,
   restoreFileOrFolder,
