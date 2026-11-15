@@ -18,7 +18,7 @@ const findExisting = async (ownerId: string, name: string, parentId: string | nu
   });
 }
 
-const updateLastAccessed =async (file_id: string, owner_id: string) => {
+const updateLastAccessed = async (file_id: string, owner_id: string) => {
   return await db.File.update({ last_accessed_at: new Date() }, { where: { id: file_id, owner_id: owner_id } })
 }
 
@@ -643,6 +643,52 @@ const getRecents = async (userId: string, page: number = 1, limit: number = 20) 
 };
 
 /**
+ * Get all public files and folders (access_level = 'public')
+ * This is a flat list at the same level, no hierarchy
+ * Pagination supported. Users must be logged in to access.
+ */
+const getPublicFiles = async (page: number = 1, limit: number = 20) => {
+  const safePage = Number.isFinite(page) && page > 0 ? Math.trunc(page) : 1;
+  const safeLimit = Number.isFinite(limit) && limit > 0 ? Math.trunc(limit) : 20;
+  const offset = (safePage - 1) * safeLimit;
+
+  const whereClause = {
+    access_level: AccessLevel.PUBLIC,
+    deleted_at: null,
+    is_folder: false,
+  };
+
+  const { rows, count } = await db.File.findAndCountAll({
+    where: whereClause,
+    order: [['name', 'ASC']],
+    attributes: [
+      'id',
+      'name',
+      'access_level',
+      'is_folder',
+      'file_info',
+      'description',
+      'tags',
+      'metadata',
+      'created_at',
+      'last_accessed_at'
+    ],
+    limit: safeLimit,
+    offset
+  });
+
+  return {
+    files: rows,
+    metadata: {
+      total: count,
+      page: safePage,
+      limit: safeLimit,
+      totalPages: Math.ceil(count / safeLimit)
+    }
+  };
+};
+
+/**
  * Update the file's access level recursively
  * When a folder's access level is changed, all its children (files and subfolders) 
  * will also have their access level updated to match the parent's new access level.
@@ -709,5 +755,6 @@ export default {
   emptyTrash,
   updateLastAccessed,
   getRecents,
-  updateFileAccessLevel
+  updateFileAccessLevel,
+  getPublicFiles
 }

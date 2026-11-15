@@ -219,6 +219,27 @@ const updateFileAccessLevelValidation = Joi.object({
         })
 });
 
+const getPublicFilesValidation = Joi.object({
+    page: Joi.number()
+        .integer()
+        .min(1)
+        .default(1)
+        .messages({
+            "number.min": "Page must be greater than or equal to 1.",
+            "number.integer": "Page must be an integer."
+        }),
+    limit: Joi.number()
+        .integer()
+        .min(1)
+        .max(100)
+        .default(20)
+        .messages({
+            "number.min": "Limit must be at least 1.",
+            "number.max": "Limit must not exceed 100.",
+            "number.integer": "Limit must be an integer."
+        }),
+});
+
 export default {
     createFolderValidation,
     updateFolderValidation,
@@ -227,4 +248,5 @@ export default {
     createFileValidation,
     shareFileValidation,
     updateFileAccessLevelValidation,
+    getPublicFilesValidation,
 };

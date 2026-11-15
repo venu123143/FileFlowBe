@@ -30,6 +30,7 @@ export class FileRouter {
         this.router.get('/file/trash', FileController.getTrash);
         // Apply session middleware before pinSessionMiddleware for /file/recents route
         this.router.get('/file/recents', FileController.getRecents);
+        this.router.get('/file/public', FileController.getPublicFiles);
         this.router.delete('/file/empty-trash', FileController.emptyTrash);
         this.router.delete('/file/:id', FileController.deleteFileOrFolder);
         this.router.post('/file/:id/restore', FileController.restoreFileOrFolder);
