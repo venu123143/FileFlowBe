@@ -5,17 +5,8 @@ import { CacheJobType, CacheWarmStatus } from '@/types/cache.types';
 import type { CacheWarmJobData, CacheWarmBatchResult } from '@/types/cache.types';
 
 const connection = {
-    host: new URL(config.REDIS_URL).hostname,
-    port: parseInt(new URL(config.REDIS_URL).port || '6379'),
-    password: new URL(config.REDIS_URL).password || undefined,
-    db: parseInt(new URL(config.REDIS_URL).pathname.slice(1) || '0'),
-    maxRetriesPerRequest: 3,
-    retryStrategy: (times: number) => {
-        if (times > 3) return null;
-        return Math.min(2 ** times * 100, 3000);
-    },
-    enableReadyCheck: true,
-    lazyConnect: true,
+    url: config.REDIS_URL,
+    maxRetriesPerRequest: null,
 };
 
 export const cacheWorker = new Worker<CacheWarmJobData, CacheWarmBatchResult>(

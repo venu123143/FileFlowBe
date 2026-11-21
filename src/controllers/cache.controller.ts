@@ -1,6 +1,7 @@
 import { type Context } from 'hono';
-import { type IUserAttributes } from '@/models/User.model';
+import { UserRole, type IUserAttributes } from '@/models/User.model';
 import res from '@/utils/response';
+import { canUserAccessStoragePaths } from '@/utils/file-access';
 import {
     addCacheWarmJob,
     getJobStatus,
@@ -15,8 +16,15 @@ const warmVideo = async (c: Context) => {
     const user = c.get('user') as IUserAttributes;
     const validated = c.get('validated') as WarmVideoInput;
     const { objectKeys } = validated;
-    console.log(objectKeys, "objectKeys")
+
     try {
+        const hasAccess = await canUserAccessStoragePaths(user, objectKeys, 'read');
+        if (!hasAccess) {
+            return res.FailureResponse(c, 403, {
+                message: 'Forbidden: you do not have permission to warm one or more requested files',
+            });
+        }
+
         const jobId = await addCacheWarmJob(objectKeys, CacheJobType.WARM, user?.id, 5);
 
         return res.SuccessResponse(c, 202, {
@@ -42,6 +50,13 @@ const refreshVideo = async (c: Context) => {
     const { objectKeys } = validated;
 
     try {
+        const hasAccess = await canUserAccessStoragePaths(user, objectKeys, 'read');
+        if (!hasAccess) {
+            return res.FailureResponse(c, 403, {
+                message: 'Forbidden: you do not have permission to refresh one or more requested files',
+            });
+        }
+
         const jobId = await addCacheWarmJob(objectKeys, CacheJobType.REFRESH, user?.id, 10);
 
         return res.SuccessResponse(c, 202, {
@@ -62,11 +77,15 @@ const refreshVideo = async (c: Context) => {
 };
 
 const getJobStatusHandler = async (c: Context) => {
-    const validated = c.get('validated') as GetJobStatusInput;
+    const user = c.get('user') as IUserAttributes;
+    const validated = c.get('validatedParams') as GetJobStatusInput;
     const { jobId } = validated;
 
     try {
-        const jobStatus = await getJobStatus(jobId);
+        const jobStatus = await getJobStatus(jobId, {
+            userId: user.id,
+            isAdmin: user.role === UserRole.ADMIN,
+        });
 
         if (!jobStatus) {
             return res.FailureResponse(c, 404, {
@@ -88,14 +107,16 @@ const getJobStatusHandler = async (c: Context) => {
 
 const listJobsHandler = async (c: Context) => {
     try {
-        const validated = c.get('validated') as ListJobsInput | undefined;
+        const user = c.get('user') as IUserAttributes;
+        const validated = c.get('validatedQuery') as ListJobsInput | undefined;
         const { status, jobType, page, limit } = validated || {};
 
         // Ensure page and limit are numbers
-        const pageNum = page ? parseInt(page as any, 10) : 1;
-        const limitNum = limit ? parseInt(limit as any, 10) : 20;
+        const pageNum = page ? parseInt(String(page), 10) : 1;
+        const limitNum = limit ? parseInt(String(limit), 10) : 20;
+        const requestedByFilter = user.role === UserRole.ADMIN ? undefined : user.id;
 
-        const result = await listJobs(status, jobType, pageNum, limitNum);
+        const result = await listJobs(status, jobType, pageNum, limitNum, requestedByFilter);
 
         return res.SuccessResponse(c, 200, {
             message: 'Jobs retrieved successfully',
@@ -111,11 +132,15 @@ const listJobsHandler = async (c: Context) => {
 };
 
 const cancelJobHandler = async (c: Context) => {
-    const validated = c.get('validated') as GetJobStatusInput;
+    const user = c.get('user') as IUserAttributes;
+    const validated = c.get('validatedParams') as GetJobStatusInput;
     const { jobId } = validated;
 
     try {
-        const cancelled = await cancelJob(jobId);
+        const cancelled = await cancelJob(jobId, {
+            userId: user.id,
+            isAdmin: user.role === UserRole.ADMIN,
+        });
 
         if (!cancelled) {
             return res.FailureResponse(c, 404, {

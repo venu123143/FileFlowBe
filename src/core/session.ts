@@ -20,7 +20,7 @@ const cookieOptions: SessionOptions['cookieOptions'] = {
     // domain: config.ENVIRONMENT === 'development' ? 'localhost' : undefined,
     path: '/',
     sameSite: config.ENVIRONMENT === 'production' ? 'none' : 'lax', // 'lax' for local dev, 'none' for production (requires HTTPS)
-    httpOnly: config.ENVIRONMENT === 'development' ? true : false, // Set to true in production for better security
+    httpOnly: true,
     secure: config.ENVIRONMENT === 'production', // true for HTTPS, false for local HTTP
     maxAge: 1000 * 60 * 20, // 20 minutes
 }

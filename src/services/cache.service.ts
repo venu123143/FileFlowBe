@@ -95,7 +95,6 @@ export class CacheService {
     private async attemptWarmVideo(objectKey: string, attemptNumber: number = 1): Promise<CacheAttemptResult> {
         const startedAt = new Date();
         const url = this.buildCdnUrl(objectKey);
-        console.log(url, 'url.')
         if (!this.validateObjectKey(objectKey)) {
             return {
                 result: {
@@ -113,7 +112,6 @@ export class CacheService {
 
         // Verify object exists in S3 before attempting to warm
         const exists = await this.checkVideoExists(objectKey);
-        console.log(exists, 'exist.')
         if (!exists) {
             return {
                 result: {
@@ -130,8 +128,6 @@ export class CacheService {
         }
 
         try {
-            const timeoutId = setTimeout(() => { }, CACHE_WARM_TIMEOUT_MS);
-
             const response = await fetch(url, {
                 method: 'GET',
                 // Use AbortSignal.timeout for modern environments
@@ -141,8 +137,6 @@ export class CacheService {
                     'User-Agent': 'FileFlow-CacheWarmer/1.0',
                 },
             });
-            console.log(response, 'response...', url, 'url')
-            clearTimeout(timeoutId);
 
             if (!response.ok) {
                 throw new Error(`CDN warming failed: HTTP ${response.status} ${response.statusText}`);
@@ -154,7 +148,6 @@ export class CacheService {
 
             // Check if response is actually cacheable
             const isCacheable = this.isCacheableResponse(response);
-            console.log(isCacheable, 'isCacheableResponse')
 
             const reader = response.body.getReader();
             let totalBytes = 0;
@@ -394,7 +387,7 @@ export class CacheService {
     }
 
     async processWarmJob(jobData: CacheWarmJobData): Promise<CacheWarmBatchResult> {
-        const { objectKeys, jobType, requestedBy } = jobData;
+        const { objectKeys, jobType } = jobData;
         const results: CacheWarmResult[] = [];
 
         for (const objectKey of objectKeys) {

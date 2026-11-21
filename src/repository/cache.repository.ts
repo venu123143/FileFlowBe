@@ -13,17 +13,7 @@ import type {
 import { CACHE_QUEUE_NAME, CACHE_JOB_NAME } from '@/types/cache.types';
 
 const connection = {
-    host: new URL(config.REDIS_URL).hostname,
-    port: parseInt(new URL(config.REDIS_URL).port || '6379'),
-    password: new URL(config.REDIS_URL).password || undefined,
-    db: parseInt(new URL(config.REDIS_URL).pathname.slice(1) || '0'),
-    maxRetriesPerRequest: 3,
-    retryStrategy: (times: number) => {
-        if (times > 3) return null;
-        return Math.min(2 ** times * 100, 3000);
-    },
-    enableReadyCheck: true,
-    lazyConnect: true,
+    url: config.REDIS_URL,
 };
 
 const defaultJobOptions: JobsOptions = {
@@ -74,12 +64,9 @@ export const addCacheWarmJob = async (objectKeys: string[], jobType: CacheJobTyp
     return job.id;
 };
 
-export const getJobStatus = async (jobId: string): Promise<CacheJobStatus | null> => {
-    const job = await cacheQueue.getJob(jobId);
-    if (!job) return null;
-
+const mapJobToStatus = async (job: Job<CacheWarmJobData>): Promise<CacheJobStatus> => {
     const state = await job.getState();
-    const progress = job.progress as CacheJobStatus['progress'] || { total: 0, completed: 0, failed: 0, skipped: 0 };
+    const progress = (job.progress as CacheJobStatus['progress']) || { total: 0, completed: 0, failed: 0, skipped: 0 };
     const result = job.returnvalue as CacheWarmBatchResult | undefined;
 
     let status: CacheWarmStatus;
@@ -92,7 +79,13 @@ export const getJobStatus = async (jobId: string): Promise<CacheJobStatus | null
             status = CacheWarmStatus.WARMING;
             break;
         case 'completed':
-            status = result?.summary.failed === result?.totalRequested ? CacheWarmStatus.FAILED : CacheWarmStatus.WARMED;
+            if (result && result.totalRequested > 0 && result.summary.failed === result.totalRequested) {
+                status = CacheWarmStatus.FAILED;
+            } else if (result && result.totalRequested > 0 && result.summary.skipped === result.totalRequested) {
+                status = CacheWarmStatus.SKIPPED;
+            } else {
+                status = CacheWarmStatus.WARMED;
+            }
             break;
         case 'failed':
             status = CacheWarmStatus.FAILED;
@@ -103,6 +96,7 @@ export const getJobStatus = async (jobId: string): Promise<CacheJobStatus | null
 
     return {
         jobId: job.id!,
+        jobType: job.data?.jobType || CacheJobType.WARM,
         status,
         progress,
         results: result?.results || [],
@@ -112,37 +106,73 @@ export const getJobStatus = async (jobId: string): Promise<CacheJobStatus | null
     };
 };
 
-export const listJobs = async (status?: CacheWarmStatus, jobType?: CacheJobType, page: number = 1, limit: number = 20): Promise<{ jobs: CacheJobStatus[]; metadata: { total: number; page: number; totalPages: number } }> => {
+const getBullMqStatesForStatus = (status?: CacheWarmStatus): Array<'waiting' | 'active' | 'completed' | 'failed' | 'delayed'> => {
+    switch (status) {
+        case CacheWarmStatus.PENDING:
+            return ['waiting', 'delayed'];
+        case CacheWarmStatus.WARMING:
+            return ['active'];
+        case CacheWarmStatus.WARMED:
+        case CacheWarmStatus.SKIPPED:
+            return ['completed'];
+        case CacheWarmStatus.FAILED:
+            return ['failed', 'completed'];
+        default:
+            return ['waiting', 'active', 'completed', 'failed', 'delayed'];
+    }
+};
+
+export const getJobStatus = async (
+    jobId: string,
+    requester?: { userId: string; isAdmin: boolean }
+): Promise<CacheJobStatus | null> => {
+    const job = await cacheQueue.getJob(jobId);
+    if (!job) return null;
+
+    if (requester && !requester.isAdmin && job.data?.requestedBy !== requester.userId) {
+        return null;
+    }
+
+    return mapJobToStatus(job);
+};
+
+export const listJobs = async (
+    status?: CacheWarmStatus,
+    jobType?: CacheJobType,
+    page: number = 1,
+    limit: number = 20,
+    requestedBy?: string
+): Promise<{ jobs: CacheJobStatus[]; metadata: { total: number; page: number; limit: number; totalPages: number } }> => {
     try {
-        const statuses = status ? [status] : ['waiting', 'active', 'completed', 'failed', 'delayed'];
-        const jobs: Job<CacheWarmJobData>[] = [];
+        const bullStates = getBullMqStatesForStatus(status);
+        const jobs = await cacheQueue.getJobs(bullStates, 0, -1);
 
-        for (const s of statuses) {
-            const batch = await cacheQueue.getJobs([s as any], (page - 1) * limit, page * limit - 1);
-            jobs.push(...batch);
+        let filteredJobs = jobs.filter((job): job is Job<CacheWarmJobData> => Boolean(job?.id));
+        if (jobType) {
+            filteredJobs = filteredJobs.filter(j => j.data?.jobType === jobType);
         }
-
-        const filteredJobs = jobType
-            ? jobs.filter(j => j.data?.jobType === jobType)
-            : jobs;
+        if (requestedBy) {
+            filteredJobs = filteredJobs.filter(j => j.data?.requestedBy === requestedBy);
+        }
 
         filteredJobs.sort((a, b) => b.timestamp - a.timestamp);
 
-        const paginatedJobs = filteredJobs.slice(0, limit);
+        const mappedJobs = await Promise.all(filteredJobs.map(mapJobToStatus));
+        const statusFiltered = status
+            ? mappedJobs.filter(j => j.status === status)
+            : mappedJobs;
 
-        const jobStatuses = await Promise.all(
-            paginatedJobs.map(async (job) => {
-                if (!job.id) return null;
-                return getJobStatus(job.id);
-            })
-        );
+        const total = statusFiltered.length;
+        const start = (page - 1) * limit;
+        const paginatedJobs = statusFiltered.slice(start, start + limit);
 
         return {
-            jobs: jobStatuses.filter((j): j is CacheJobStatus => j !== null),
+            jobs: paginatedJobs,
             metadata: {
-                total: filteredJobs.length,
+                total,
                 page,
-                totalPages: Math.ceil(filteredJobs.length / limit),
+                limit,
+                totalPages: Math.ceil(total / limit),
             }
         };
     } catch (error: any) {
@@ -151,9 +181,16 @@ export const listJobs = async (status?: CacheWarmStatus, jobType?: CacheJobType,
     }
 };
 
-export const cancelJob = async (jobId: string): Promise<boolean> => {
+export const cancelJob = async (
+    jobId: string,
+    requester?: { userId: string; isAdmin: boolean }
+): Promise<boolean> => {
     const job = await cacheQueue.getJob(jobId);
     if (!job) return false;
+
+    if (requester && !requester.isAdmin && job.data?.requestedBy !== requester.userId) {
+        return false;
+    }
 
     const state = await job.getState();
     if (state === 'completed' || state === 'failed') return false;

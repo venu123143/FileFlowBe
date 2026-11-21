@@ -72,6 +72,7 @@ export interface CacheWarmResponse {
 
 export interface CacheJobStatus {
     jobId: string;
+    jobType: CacheJobType;
     status: CacheWarmStatus;
     progress: {
         total: number;

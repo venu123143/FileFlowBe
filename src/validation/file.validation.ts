@@ -137,18 +137,26 @@ const fileInfoValidation = Joi.object({
             "number.min": "Duration cannot be negative."
         }),
 
-    // Video metadata fields
+    // Video metadata fields (supports both frontend AudioTrackOption and backend AudioTrackInfo shapes)
     audio_tracks: Joi.array()
         .items(Joi.object({
+            id: Joi.string().optional(),
+            label: Joi.string().optional(),
+            kind: Joi.string().valid('main', 'commentary', 'dub', 'description', 'alternative').optional(),
+            default: Joi.boolean().optional(),
+            src: Joi.string().optional(),
             index: Joi.number().integer().min(0).optional(),
             codec: Joi.string().optional(),
             language: Joi.string().optional(),
             title: Joi.string().optional(),
             channels: Joi.number().integer().min(1).allow(null).optional(),
             sample_rate: Joi.number().integer().min(1).allow(null).optional(),
+            sampleRate: Joi.number().integer().min(1).allow(null).optional(),
             bitrate: Joi.number().integer().min(1).allow(null).optional(),
             is_default: Joi.boolean().optional(),
+            isDefault: Joi.boolean().optional(),
             is_forced: Joi.boolean().optional(),
+            isForced: Joi.boolean().optional(),
         }))
         .optional()
         .messages({

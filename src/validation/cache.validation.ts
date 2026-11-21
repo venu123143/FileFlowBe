@@ -36,21 +36,17 @@ export const refreshVideoSchema = Joi.object({
 });
 
 export const getJobStatusSchema = Joi.object({
-    params: Joi.object({
-        jobId: Joi.string().pattern(/^[0-9a-fA-F-]{8,}$/).required().messages({
-            'string.pattern.base': 'Invalid job ID format',
-            'any.required': 'jobId is required',
-        }),
+    jobId: Joi.string().pattern(/^[a-zA-Z0-9:_-]{1,128}$/).required().messages({
+        'string.pattern.base': 'Invalid job ID format',
+        'any.required': 'jobId is required',
     }),
 });
 
 export const listJobsSchema = Joi.object({
-    query: Joi.object({
-        status: Joi.string().valid(...Object.values(CacheWarmStatus)).optional(),
-        jobType: Joi.string().valid(...Object.values(CacheJobType)).optional(),
-        page: Joi.number().integer().positive().default(1),
-        limit: Joi.number().integer().positive().max(100).default(20),
-    }),
+    status: Joi.string().valid(...Object.values(CacheWarmStatus)).optional(),
+    jobType: Joi.string().valid(...Object.values(CacheJobType)).optional(),
+    page: Joi.number().integer().positive().default(1),
+    limit: Joi.number().integer().positive().max(100).default(20),
 });
 
 // Type inference for Joi schemas

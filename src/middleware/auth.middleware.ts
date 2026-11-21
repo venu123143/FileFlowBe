@@ -64,7 +64,6 @@ const verifyBearerToken = async (c: Context, token: string, next: Next) => {
         // Attach the user object to the context for downstream handlers
         c.set("user", find_user);
         c.set("session_id", jwt_decode.sid ?? null);
-        await next();
     } catch (error) {
         // Handle transient database errors - return 503 so client can retry
         if (isTransientDbError(error)) {
@@ -78,6 +77,8 @@ const verifyBearerToken = async (c: Context, token: string, next: Next) => {
         const errorMessage = error instanceof Error ? error.message : String(error);
         return res.FailureResponse(c, 401, { message: "Login expired.", error: errorMessage });
     }
+
+    await next();
 }
 
 
@@ -111,8 +112,6 @@ const verifyApiToken = async (c: Context, token: string, next: Next) => {
         }
 
         c.set("user", user);
-        await next();
-
     } catch (error) {
         // Handle transient database errors - return 503 so client can retry
         if (isTransientDbError(error)) {
@@ -126,6 +125,8 @@ const verifyApiToken = async (c: Context, token: string, next: Next) => {
         const errorMessage = error instanceof Error ? error.message : String(error);
         return res.FailureResponse(c, 401, { message: "Invalid API token.", error: errorMessage });
     }
+
+    await next();
 }
 
 
@@ -189,9 +190,6 @@ const pinSessionMiddleware: MiddlewareHandler = async (c: Context, next: Next) =
                 message: "PIN session user mismatch."
             });
         }
-
-        // PIN session is valid, proceed to next middleware/route
-        await next();
     } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error);
         return res.FailureResponse(c, 500, {
@@ -199,6 +197,9 @@ const pinSessionMiddleware: MiddlewareHandler = async (c: Context, next: Next) =
             error: errorMessage
         });
     }
+
+    // PIN session is valid, proceed to next middleware/route
+    await next();
 };
 
 function checkPermissions(roles: UserRole[]) {

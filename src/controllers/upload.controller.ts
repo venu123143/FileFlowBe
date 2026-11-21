@@ -9,6 +9,7 @@ import { addToNotificationQueue } from "@/core/notification-queue"
 import { addToAnalyticsQueue, AnalyticsEventType } from "@/core/analytics-queue"
 import { addCacheWarmJob } from "@/repository/cache.repository"
 import { CacheJobType } from "@/types/cache.types"
+import { canUserAccessStoragePaths } from "@/utils/file-access"
 
 const uploadFile = async (c: Context) => {
     const user = c.get("user") as IUserAttributes
@@ -84,6 +85,11 @@ const deleteFile = async (c: Context) => {
         const validatedParams = c.get('validatedParams') as { fileName: string }
         const { fileName } = validatedParams
 
+        const canDelete = await canUserAccessStoragePaths(user, [fileName], 'write')
+        if (!canDelete) {
+            return res.FailureResponse(c, 403, { message: "Forbidden: you do not have permission to delete this file" })
+        }
+
         await s3Service.deleteFile(fileName)
         if (user?.id) {
             addToNotificationQueue({
@@ -107,9 +113,15 @@ const deleteFile = async (c: Context) => {
 }
 
 const getFiles = async (c: Context) => {
+    const user = c.get("user") as IUserAttributes
     try {
         const validatedParams = c.get('validatedQuery') as { fileName: string }
         const { fileName } = validatedParams
+
+        const canRead = await canUserAccessStoragePaths(user, [fileName], 'read')
+        if (!canRead) {
+            return res.FailureResponse(c, 403, { message: "Forbidden: you do not have permission to access this file" })
+        }
 
         const url = await s3Service.getFileUrl(fileName)
         if (!url) {

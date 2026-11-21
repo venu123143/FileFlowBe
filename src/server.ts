@@ -15,6 +15,7 @@ import winston from "@/core/logger";
 import "@/controllers/cron.controller";
 import SocketService from "@/services/socket.service";
 import session from "@/core/session";
+import config, { Environment } from "@/config/config";
 // Start cache worker for processing cache warming/refresh jobs
 import "@/queue/cache.queue";
 
@@ -36,9 +37,11 @@ export class App {
         this.registerSocketHandlers();
         this.registerErrorHandler();
         RedisConnectionManager.connect();
-        instrument(this.io, {
-            auth: false,
-        });
+        if (config.ENVIRONMENT !== Environment.Production) {
+            instrument(this.io, {
+                auth: false,
+            });
+        }
     }
 
     private registerMiddlewares() {
