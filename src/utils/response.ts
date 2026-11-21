@@ -15,9 +15,10 @@ interface FailureData {
 }
 
 type FailureStatus = 400 | 401 | 403 | 404 | 413 | 422 | 429 | 409 | 500 | 503;
+type SuccessStatus = 200 | 201 | 202;
 
 const RESPONSE = {
-    SuccessResponse: (c: Context, code: 200 | 201, data: SuccessData) => {
+    SuccessResponse: (c: Context, code: SuccessStatus, data: SuccessData) => {
         return c.json({ success: true, ...data, }, code);
     },
     FailureResponse: (c: Context, code: FailureStatus, data: FailureData) => {

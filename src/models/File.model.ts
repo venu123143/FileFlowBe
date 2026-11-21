@@ -1,3 +1,4 @@
+import type { AudioTrackInfo } from '@/services/video-processor.service';
 import { DataTypes, Model, type Optional, Sequelize } from 'sequelize';
 
 // Access control enum
@@ -13,6 +14,7 @@ export interface IFileInfo {
     storage_path: string;     // internal storage path
     thumbnail_path?: string;   // path to generated thumbnail (if image/video)
     duration?: number;         // media duration in seconds (for audio/video)                        // image/video dimensions
+    audio_tracks?: AudioTrackInfo[];
 }
 
 

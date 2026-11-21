@@ -14,6 +14,41 @@ const connection = new Sequelize(dbConfig.database, dbConfig.username, dbConfig.
         dialect: dbConfig.dialect,
         port: dbConfig.port,
         logging: false,
+        pool: {
+            max: 20,
+            min: 2,
+            acquire: 60000,
+            idle: 30000,
+            evict: 5000,
+        },
+        // Connection retry and health check configuration
+        retry: {
+            max: 3,
+            match: [
+                /ConnectionError/,
+                /ConnectionRefusedError/,
+                /HostNotFoundError/,
+                /HostNotReachableError/,
+                /InvalidConnectionError/,
+                /ConnectionTimedOutError/,
+                /Connection terminated unexpectedly/,
+                /Connection reset by peer/,
+                /Broken pipe/,
+                /ECONNRESET/,
+                /ETIMEDOUT/,
+                /ENOTFOUND/,
+            ],
+        },
+        // Keep-alive to prevent idle connection termination
+        dialectOptions: {
+            keepAlive: true,
+            keepAliveInitialDelayMillis: 10000,
+            // TCP keepalive settings
+            socketTimeout: 60000,
+            connectionTimeout: 60000,
+        },
+        // Disable automatic reconnection handling - we'll handle it manually
+        // to have better control over connection lifecycle
         // timezone: "+05:30" // Indian Standard Time (IST)
     }
 );
@@ -26,6 +61,25 @@ connection.authenticate()
     .catch((error: Error) => {
         console.error("Unable to connect to the database:", error.message);
     });
+
+// Add connection health check and event listeners for better connection management
+connection.addHook('afterConnect', async (connection: any, config: any) => {
+    // Set TCP keepalive on the underlying connection
+    if (connection.stream && connection.stream.socket) {
+        connection.stream.socket.setKeepAlive(true, 10000);
+    }
+});
+
+connection.addHook('beforeQuery', async (options: any) => {
+    // Log slow queries in development
+    if (process.env.NODE_ENV === 'development') {
+        options.logging = (sql: string, timing?: number) => {
+            if (timing && timing > 1000) {
+                console.warn(`Slow query (${timing}ms):`, sql.substring(0, 200));
+            }
+        };
+    }
+});
 
 // Initialize all models with associations
 const models = initializeModels(connection);

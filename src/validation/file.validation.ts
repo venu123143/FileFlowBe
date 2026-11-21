@@ -136,6 +136,48 @@ const fileInfoValidation = Joi.object({
             "number.base": "Duration must be a number in seconds.",
             "number.min": "Duration cannot be negative."
         }),
+
+    // Video metadata fields
+    audio_tracks: Joi.array()
+        .items(Joi.object({
+            index: Joi.number().integer().min(0).optional(),
+            codec: Joi.string().optional(),
+            language: Joi.string().optional(),
+            title: Joi.string().optional(),
+            channels: Joi.number().integer().min(1).allow(null).optional(),
+            sample_rate: Joi.number().integer().min(1).allow(null).optional(),
+            bitrate: Joi.number().integer().min(1).allow(null).optional(),
+            is_default: Joi.boolean().optional(),
+            is_forced: Joi.boolean().optional(),
+        }))
+        .optional()
+        .messages({
+            "array.base": "Audio tracks must be an array."
+        }),
+
+    video_codec: Joi.string()
+        .allow(null, "")
+        .optional()
+        .messages({
+            "string.base": "Video codec must be a string."
+        }),
+
+    resolution: Joi.string()
+        .allow(null, "")
+        .optional()
+        .messages({
+            "string.base": "Resolution must be a string."
+        }),
+
+    video_bitrate: Joi.number()
+        .integer()
+        .min(0)
+        .allow(null)
+        .optional()
+        .messages({
+            "number.base": "Video bitrate must be a number.",
+            "number.min": "Video bitrate cannot be negative."
+        }),
 });
 
 

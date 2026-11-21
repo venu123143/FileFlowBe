@@ -15,6 +15,8 @@ import winston from "@/core/logger";
 import "@/controllers/cron.controller";
 import SocketService from "@/services/socket.service";
 import session from "@/core/session";
+// Start cache worker for processing cache warming/refresh jobs
+import "@/queue/cache.queue";
 
 export class App {
     private readonly app: Hono;

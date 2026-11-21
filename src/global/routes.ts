@@ -7,6 +7,7 @@ import { NotificationRouter } from "@/routes/notification.routes";
 import { ApiTokenRouter } from "@/routes/api-token.routes";
 import { AnalyticsRouter } from "@/routes/analytics.routes";
 import { FavoriteRouter } from "@/routes/favorite.routes";
+import { CacheRouter } from "@/routes/cache.routes";
 
 export class MainRouter {
     private readonly router: Hono;
@@ -25,6 +26,7 @@ export class MainRouter {
         this.router.route("/api-token", new ApiTokenRouter().getRouter());
         this.router.route("/analytics", new AnalyticsRouter().getRouter());
         this.router.route("/favorite", new FavoriteRouter().getRouter());
+        this.router.route("/cache", new CacheRouter().getRouter());
     }
 
     /** Return the configured Hono instance */

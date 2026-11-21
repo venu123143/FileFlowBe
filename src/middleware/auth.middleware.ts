@@ -8,6 +8,37 @@ import redisConstants from "@/global/redis-constants";
 import { getValidPinSession } from "@/core/session";
 import crypto from "crypto";
 import { UserRole, type IUserAttributes } from "@/models/User.model";
+import { ConnectionError, ConnectionRefusedError, HostNotFoundError, HostNotReachableError, InvalidConnectionError, ConnectionTimedOutError } from "sequelize";
+
+/**
+ * Check if an error is a transient database connection error
+ */
+function isTransientDbError(error: unknown): boolean {
+    if (!error) return false;
+    
+    if (error instanceof ConnectionError ||
+        error instanceof ConnectionRefusedError ||
+        error instanceof HostNotFoundError ||
+        error instanceof HostNotReachableError ||
+        error instanceof InvalidConnectionError ||
+        error instanceof ConnectionTimedOutError) {
+        return true;
+    }
+    
+    if (error instanceof Error) {
+        const message = error.message;
+        return message.includes('Connection terminated unexpectedly') ||
+               message.includes('Connection reset by peer') ||
+               message.includes('Broken pipe') ||
+               message.includes('ECONNRESET') ||
+               message.includes('ETIMEDOUT') ||
+               message.includes('socket hang up') ||
+               message.includes('Connection lost') ||
+               message.includes('connection terminated');
+    }
+    
+    return false;
+}
 
 
 
@@ -35,6 +66,15 @@ const verifyBearerToken = async (c: Context, token: string, next: Next) => {
         c.set("session_id", jwt_decode.sid ?? null);
         await next();
     } catch (error) {
+        // Handle transient database errors - return 503 so client can retry
+        if (isTransientDbError(error)) {
+            console.error("Transient DB error in verifyBearerToken:", error);
+            return res.FailureResponse(c, 503, { 
+                message: "Service temporarily unavailable. Please retry.", 
+                retryable: true 
+            });
+        }
+        
         const errorMessage = error instanceof Error ? error.message : String(error);
         return res.FailureResponse(c, 401, { message: "Login expired.", error: errorMessage });
     }
@@ -74,6 +114,15 @@ const verifyApiToken = async (c: Context, token: string, next: Next) => {
         await next();
 
     } catch (error) {
+        // Handle transient database errors - return 503 so client can retry
+        if (isTransientDbError(error)) {
+            console.error("Transient DB error in verifyApiToken:", error);
+            return res.FailureResponse(c, 503, { 
+                message: "Service temporarily unavailable. Please retry.", 
+                retryable: true 
+            });
+        }
+        
         const errorMessage = error instanceof Error ? error.message : String(error);
         return res.FailureResponse(c, 401, { message: "Invalid API token.", error: errorMessage });
     }
