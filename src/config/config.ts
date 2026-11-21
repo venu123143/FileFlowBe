@@ -41,7 +41,6 @@ interface Config {
         CDN_URL: string;
     };
     CLOUDFLARE: {
-        CDN_DOMAIN: string;
         API_TOKEN: string;
         ZONE_ID: string;
         DEFAULT_TTL: string;
@@ -82,7 +81,6 @@ const config: Config = {
         CDN_URL: process.env.S3_CDN_URL!,
     },
     CLOUDFLARE: {
-        CDN_DOMAIN: process.env.CLOUDFLARE_CDN_DOMAIN!,
         API_TOKEN: process.env.CLOUDFLARE_API_TOKEN!,
         ZONE_ID: process.env.CLOUDFLARE_ZONE_ID!,
         DEFAULT_TTL: process.env.CLOUDFLARE_CACHE_TTL!

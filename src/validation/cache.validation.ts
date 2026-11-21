@@ -4,11 +4,11 @@ import { CacheJobType, CacheWarmStatus, MAX_OBJECT_KEY_LENGTH } from '@/types/ca
 const objectKeySchema = Joi.string()
     .min(1)
     .max(MAX_OBJECT_KEY_LENGTH)
-    .pattern(/^[a-zA-Z0-9_\-/.]+$/)
+    .pattern(/^[a-zA-Z0-9._/-]+$/)
     .messages({
         'string.empty': 'Object key cannot be empty',
         'string.max': `Object key exceeds maximum length of ${MAX_OBJECT_KEY_LENGTH}`,
-        'string.pattern.base': 'Object key contains invalid characters',
+        'string.pattern.base': 'Object key contains invalid characters (allowed: alphanumeric, dots, dashes, underscores, forward slashes)',
     });
 
 export const warmVideoSchema = Joi.object({
@@ -37,8 +37,8 @@ export const refreshVideoSchema = Joi.object({
 
 export const getJobStatusSchema = Joi.object({
     params: Joi.object({
-        jobId: Joi.string().uuid().required().messages({
-            'string.guid': 'Invalid job ID format',
+        jobId: Joi.string().pattern(/^[0-9a-fA-F-]{8,}$/).required().messages({
+            'string.pattern.base': 'Invalid job ID format',
             'any.required': 'jobId is required',
         }),
     }),

@@ -1,4 +1,4 @@
-import { Queue, QueueEvents, type Job, type JobsOptions } from 'bullmq';
+import { Queue, type Job, type JobsOptions } from 'bullmq';
 import config from '@/config/config';
 import {
     CacheWarmStatus,
@@ -13,7 +13,17 @@ import type {
 import { CACHE_QUEUE_NAME, CACHE_JOB_NAME } from '@/types/cache.types';
 
 const connection = {
-    url: config.REDIS_URL,
+    host: new URL(config.REDIS_URL).hostname,
+    port: parseInt(new URL(config.REDIS_URL).port || '6379'),
+    password: new URL(config.REDIS_URL).password || undefined,
+    db: parseInt(new URL(config.REDIS_URL).pathname.slice(1) || '0'),
+    maxRetriesPerRequest: 3,
+    retryStrategy: (times: number) => {
+        if (times > 3) return null;
+        return Math.min(2 ** times * 100, 3000);
+    },
+    enableReadyCheck: true,
+    lazyConnect: true,
 };
 
 const defaultJobOptions: JobsOptions = {
@@ -45,15 +55,12 @@ export interface CacheJobRecord {
         total: number;
         completed: number;
         failed: number;
+        skipped: number;
     };
     createdAt: Date;
     updatedAt: Date;
     completedAt?: Date;
 }
-
-// const JOB_PREFIX = 'cache:job:';
-// const JOB_INDEX_KEY = 'cache:jobs:index';
-// const JOB_TTL_SECONDS = 7 * 24 * 60 * 60; // 7 days
 
 export const addCacheWarmJob = async (objectKeys: string[], jobType: CacheJobType = CacheJobType.WARM, requestedBy?: string, priority?: number): Promise<string> => {
     const job = await cacheQueue.add(CACHE_JOB_NAME, { objectKeys, jobType, requestedBy }, {
@@ -72,7 +79,7 @@ export const getJobStatus = async (jobId: string): Promise<CacheJobStatus | null
     if (!job) return null;
 
     const state = await job.getState();
-    const progress = job.progress as CacheJobStatus['progress'] || { total: 0, completed: 0, failed: 0 };
+    const progress = job.progress as CacheJobStatus['progress'] || { total: 0, completed: 0, failed: 0, skipped: 0 };
     const result = job.returnvalue as CacheWarmBatchResult | undefined;
 
     let status: CacheWarmStatus;
@@ -105,7 +112,7 @@ export const getJobStatus = async (jobId: string): Promise<CacheJobStatus | null
     };
 };
 
-export const listJobs = async (status?: CacheWarmStatus, jobType?: CacheJobType, page: number = 1, limit: number = 20): Promise<{ jobs: CacheJobStatus[]; total: number; page: number; totalPages: number }> => {
+export const listJobs = async (status?: CacheWarmStatus, jobType?: CacheJobType, page: number = 1, limit: number = 20): Promise<{ jobs: CacheJobStatus[]; metadata: { total: number; page: number; totalPages: number } }> => {
     try {
         const statuses = status ? [status] : ['waiting', 'active', 'completed', 'failed', 'delayed'];
         const jobs: Job<CacheWarmJobData>[] = [];
@@ -132,9 +139,11 @@ export const listJobs = async (status?: CacheWarmStatus, jobType?: CacheJobType,
 
         return {
             jobs: jobStatuses.filter((j): j is CacheJobStatus => j !== null),
-            total: filteredJobs.length,
-            page,
-            totalPages: Math.ceil(filteredJobs.length / limit),
+            metadata: {
+                total: filteredJobs.length,
+                page,
+                totalPages: Math.ceil(filteredJobs.length / limit),
+            }
         };
     } catch (error: any) {
         console.error('Error in listJobs:', error);

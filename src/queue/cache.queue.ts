@@ -5,10 +5,21 @@ import { CacheJobType, CacheWarmStatus } from '@/types/cache.types';
 import type { CacheWarmJobData, CacheWarmBatchResult } from '@/types/cache.types';
 
 const connection = {
-    url: config.REDIS_URL,
+    host: new URL(config.REDIS_URL).hostname,
+    port: parseInt(new URL(config.REDIS_URL).port || '6379'),
+    password: new URL(config.REDIS_URL).password || undefined,
+    db: parseInt(new URL(config.REDIS_URL).pathname.slice(1) || '0'),
+    maxRetriesPerRequest: 3,
+    retryStrategy: (times: number) => {
+        if (times > 3) return null;
+        return Math.min(2 ** times * 100, 3000);
+    },
+    enableReadyCheck: true,
+    lazyConnect: true,
 };
 
-export const cacheWorker = new Worker<CacheWarmJobData, CacheWarmBatchResult>('fileflow-cache-warm-queue',
+export const cacheWorker = new Worker<CacheWarmJobData, CacheWarmBatchResult>(
+    'fileflow-cache-warm-queue',
     async (job: Job<CacheWarmJobData>) => {
         const { objectKeys, jobType, requestedBy } = job.data;
         const startTime = Date.now();
@@ -16,18 +27,42 @@ export const cacheWorker = new Worker<CacheWarmJobData, CacheWarmBatchResult>('f
 
         console.log(`[CacheWorker] Processing ${jobType} job ${jobId} for ${objectKeys.length} object(s), requested by ${requestedBy || 'unknown'}`);
 
-        await job.updateProgress({ total: objectKeys.length, completed: 0, failed: 0, });
+        // Initialize progress with actual valid items count
+        const validKeys = objectKeys.filter(k => k && k.trim() !== '');
+        const skippedCount = objectKeys.length - validKeys.length;
+
+        await job.updateProgress({
+            total: objectKeys.length,
+            completed: 0,
+            failed: 0,
+            skipped: skippedCount,
+        });
 
         const results: CacheWarmBatchResult['results'] = [];
+        let processedCount = 0;
 
         for (let i = 0; i < objectKeys.length; i++) {
             const objectKey = objectKeys[i];
-            if (!objectKey) continue;
 
+            // Handle invalid/empty keys
+            if (!objectKey || objectKey.trim() === '') {
+                results.push({
+                    objectKey: objectKey || '',
+                    status: CacheWarmStatus.SKIPPED,
+                    error: 'Empty or invalid object key',
+                    startedAt: new Date(),
+                    completedAt: new Date(),
+                    durationMs: 0,
+                });
+                continue;
+            }
+
+            // Update progress before processing
             await job.updateProgress({
                 total: objectKeys.length,
-                completed: i,
+                completed: processedCount,
                 failed: results.filter(r => r.status === CacheWarmStatus.FAILED).length,
+                skipped: results.filter(r => r.status === CacheWarmStatus.SKIPPED).length,
             });
 
             let result;
@@ -38,37 +73,45 @@ export const cacheWorker = new Worker<CacheWarmJobData, CacheWarmBatchResult>('f
             }
 
             results.push(result);
+            processedCount++;
 
-            console.log(`[CacheWorker] ${jobType} for ${objectKey}: ${result.status} (${result.durationMs}ms)`);
+            console.log(`[CacheWorker] ${jobType} for ${objectKey}: ${result.status} (${result.durationMs}ms, cache: ${result.cacheStatus || 'unknown'})`);
         }
 
         const warmed = results.filter(r => r.status === CacheWarmStatus.WARMED).length;
         const failed = results.filter(r => r.status === CacheWarmStatus.FAILED).length;
+        const skipped = results.filter(r => r.status === CacheWarmStatus.SKIPPED).length;
 
+        // Final progress update
         await job.updateProgress({
             total: objectKeys.length,
-            completed: objectKeys.length,
+            completed: processedCount,
             failed,
+            skipped,
         });
 
         const duration = Date.now() - startTime;
-        console.log(`[CacheWorker] Job ${jobId} completed in ${duration}ms: ${warmed} warmed, ${failed} failed`);
+        console.log(`[CacheWorker] Job ${jobId} completed in ${duration}ms: ${warmed} warmed, ${failed} failed, ${skipped} skipped`);
 
-        const batchResult = {
+        const batchResult: CacheWarmBatchResult = {
             jobId,
             totalRequested: objectKeys.length,
             results,
             summary: {
                 warmed,
                 failed,
+                skipped,
                 pending: 0,
             },
         };
 
-        // Throw if ALL items failed so BullMQ can retry according to backoff policy
-        if (warmed === 0 && failed > 0) {
-            const errorMessages = results.filter(r => r.error).map(r => r.error).join('; ');
-            throw new Error(`All ${failed} object(s) failed: ${errorMessages}`);
+        // Throw if ALL valid items failed so BullMQ can retry according to backoff policy
+        if (warmed === 0 && (failed > 0 || skipped > 0) && (failed + skipped) === objectKeys.length) {
+            const errorMessages = results
+                .filter(r => r.error)
+                .map(r => r.error)
+                .join('; ');
+            throw new Error(`All ${objectKeys.length} object(s) failed: ${errorMessages}`);
         }
 
         return batchResult;
@@ -80,15 +123,18 @@ export const cacheWorker = new Worker<CacheWarmJobData, CacheWarmBatchResult>('f
             max: 10,
             duration: 60000,
         },
+        // Remove stalled jobs after 30 minutes
+        stalledInterval: 30 * 60 * 1000,
     }
 );
 
+// QueueEvents for monitoring - only one instance
 const queueEvents = new QueueEvents('fileflow-cache-warm-queue', { connection });
 queueEvents.setMaxListeners(1);
 
 queueEvents.on('completed', ({ jobId, returnvalue }) => {
     const result = returnvalue as unknown as CacheWarmBatchResult;
-    console.log(`[CacheWorker] Job ${jobId} completed: ${result.summary.warmed} warmed, ${result.summary.failed} failed`);
+    console.log(`[CacheWorker] Job ${jobId} completed: ${result.summary.warmed} warmed, ${result.summary.failed} failed, ${result.summary.skipped} skipped`);
 });
 
 queueEvents.on('failed', ({ jobId, failedReason }) => {
@@ -104,7 +150,11 @@ cacheWorker.on('error', (error) => {
 });
 
 cacheWorker.on('stalled', (jobId) => {
-    console.warn(`[CacheWorker] Job ${jobId} stalled`);
+    console.warn(`[CacheWorker] Job ${jobId} stalled - may need investigation`);
+});
+
+cacheWorker.on('drained', () => {
+    console.log('[CacheWorker] All jobs processed, queue drained');
 });
 
 export default cacheWorker;

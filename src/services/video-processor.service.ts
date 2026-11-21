@@ -1,8 +1,8 @@
 import ffmpeg from 'fluent-ffmpeg';
 import ffmpegStatic from 'ffmpeg-static';
 import ffprobeStatic from 'ffprobe-static';
-import { pathToFileURL } from 'url';
-import { fileURLToPath } from 'url';
+import fs from 'fs';
+import { open as openFile } from 'fs/promises';
 import path from 'path';
 
 // Set ffmpeg and ffprobe paths
@@ -195,7 +195,6 @@ export const generateThumbnails = async (
       .output(outputPattern)
       .on('end', () => {
         // Read generated files
-        const fs = require('fs');
         const files = fs.readdirSync(outputDir)
           .filter((f: string) => f.startsWith('thumb_') && f.endsWith('.jpg'))
           .sort()
@@ -229,9 +228,177 @@ export const convertToAudioTrackOptions = (audioTracks: AudioTrackInfo[]): Array
   }));
 };
 
+/**
+ * Apply MP4 Fast Start optimization by moving the moov atom to the beginning.
+ * This allows browsers to start playback immediately without downloading the
+ * entire file first. Uses `-c copy` so there is no re-encoding — fast and lossless.
+ * @param inputPath - Input video file path
+ * @param outputPath - Output video file path (can be same as input if using temp file)
+ * @returns Path to the optimized file
+ */
+export const applyFastStart = async (
+  inputPath: string,
+  outputPath: string
+): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    ffmpeg(inputPath)
+      .outputOptions(['-c', 'copy', '-movflags', '+faststart'])
+      .output(outputPath)
+      .on('end', () => {
+        console.log('[VideoProcessor] Fast Start applied:', { inputPath, outputPath });
+        resolve(outputPath);
+      })
+      .on('error', (err) => {
+        console.error('[VideoProcessor] Fast Start error:', err);
+        reject(err);
+      })
+      .run();
+  });
+};
+
+const MAX_MP4_TOP_LEVEL_BOXES = 1024;
+
+interface Mp4BoxHeader {
+  type: string;
+  size: number;
+  headerSize: number;
+}
+
+/**
+ * Parse a 4-byte ASCII MP4 box header (plus optional 8-byte extended size).
+ */
+function parseMp4BoxHeader(buf: Buffer, bytesRead: number, remainingBytes: number): Mp4BoxHeader | null {
+  if (bytesRead < 8) return null;
+
+  const size32 = buf.readUInt32BE(0);
+  // Ensure box type is printable ASCII (e.g. 'ftyp', 'moov', 'mdat')
+  for (let i = 4; i < 8; i++) {
+    const byte = buf[i]!;
+    if (byte < 0x20 || byte > 0x7e) return null;
+  }
+  const type = buf.toString('ascii', 4, 8);
+
+  if (size32 === 0) {
+    return { type, size: remainingBytes, headerSize: 8 };
+  }
+
+  if (size32 === 1) {
+    if (bytesRead < 16) return null;
+    const size64 = Number(buf.readBigUInt64BE(8));
+    if (!Number.isSafeInteger(size64) || size64 < 16) return null;
+    return { type, size: size64, headerSize: 16 };
+  }
+
+  if (size32 < 8) return null;
+  return { type, size: size32, headerSize: 8 };
+}
+
+/**
+ * Walk top-level MP4 boxes to determine whether `moov` appears before `mdat`.
+ */
+async function walkMp4BoxesForFastStart(
+  totalSize: number,
+  readHeaderAt: (offset: number) => Promise<Buffer | null>
+): Promise<boolean> {
+  if (totalSize < 8) return false;
+
+  let offset = 0;
+  let seenMoov = false;
+
+  for (let i = 0; i < MAX_MP4_TOP_LEVEL_BOXES && offset + 8 <= totalSize; i++) {
+    const buf = await readHeaderAt(offset);
+    if (!buf) return false;
+
+    const header = parseMp4BoxHeader(buf, buf.length, totalSize - offset);
+    if (!header || offset + header.size > totalSize) {
+      return false;
+    }
+
+    if (header.type === 'mdat') {
+      // If mdat appears before moov, fast start is not enabled;
+      // if moov was already seen, both exist in fast-start order.
+      return seenMoov;
+    }
+
+    if (header.type === 'moov') {
+      seenMoov = true;
+    }
+
+    offset += header.size;
+  }
+
+  return false;
+}
+
+/**
+ * Check if an MP4 file already has the moov atom before mdat (fast start)
+ * by parsing top-level ISO BMFF box headers directly (no subprocesses).
+ * Supports both local file paths and HTTP(S) URLs (via Range requests).
+ * Returns true only if both `moov` and `mdat` exist and `moov` precedes `mdat`.
+ * @param filePathOrUrl - Local path or HTTP(S) URL to the MP4 file
+ */
+export const hasFastStart = async (filePathOrUrl: string): Promise<boolean> => {
+  if (/^https?:\/\//i.test(filePathOrUrl)) {
+    let totalSize: number | null = null;
+
+    const readRemoteHeaderAt = async (offset: number): Promise<Buffer | null> => {
+      const response = await fetch(filePathOrUrl, {
+        headers: { Range: `bytes=${offset}-${offset + 15}` },
+        signal: AbortSignal.timeout(10000),
+      });
+
+      // Must be 206 Partial Content; abort immediately if server ignores Range
+      if (response.status !== 206) {
+        await response.body?.cancel();
+        return null;
+      }
+
+      const contentRange = response.headers.get('content-range');
+      if (totalSize === null && contentRange) {
+        const match = contentRange.match(/\/(\d+)$/);
+        if (match?.[1]) {
+          totalSize = parseInt(match[1], 10);
+        }
+      }
+
+      const arrayBuf = await response.arrayBuffer();
+      return Buffer.from(arrayBuf);
+    };
+
+    try {
+      const firstHeader = await readRemoteHeaderAt(0);
+      if (!firstHeader || totalSize === null) return false;
+
+      return await walkMp4BoxesForFastStart(totalSize, async (offset) =>
+        offset === 0 ? firstHeader : readRemoteHeaderAt(offset)
+      );
+    } catch {
+      return false;
+    }
+  }
+
+  let handle: Awaited<ReturnType<typeof openFile>> | null = null;
+  try {
+    handle = await openFile(filePathOrUrl, 'r');
+    const fileStat = await handle.stat();
+    const headerBuf = Buffer.alloc(16);
+
+    return await walkMp4BoxesForFastStart(fileStat.size, async (offset) => {
+      const { bytesRead } = await handle!.read(headerBuf, 0, 16, offset);
+      return bytesRead >= 8 ? headerBuf.subarray(0, bytesRead) : null;
+    });
+  } catch {
+    return false;
+  } finally {
+    await handle?.close().catch(() => {});
+  }
+};
+
 export default {
   extractVideoMetadata,
   generateThumbnail,
   generateThumbnails,
   convertToAudioTrackOptions,
+  applyFastStart,
+  hasFastStart,
 };
