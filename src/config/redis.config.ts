@@ -25,7 +25,7 @@ class RedisConnectionManager {
             db: parseInt(new URL(config.REDIS_URL).pathname.slice(1) || '0'), // If your URL includes a DB number
             lazyConnect: true, // Don't connect until a command is sent or .connect() is called
             reconnectOnError: (err) => {
-                const targetErrors = ['READONLY', 'ETIMEDOUT'];
+                const targetErrors = ['READONLY', 'ETIMEDOUT', 'ECONNRESET', 'ENOTFOUND', 'ECONNREFUSED'];
                 const errorMessage = err.message.toUpperCase();
                 return targetErrors.some(target => errorMessage.includes(target));
             },
@@ -34,10 +34,10 @@ class RedisConnectionManager {
                     LoggerService.loggerInstance.logAuditEvent("Redis reconnection", { userId: "system", action: "redisReconnectionError", details: "Redis max reconnection attempts reached" });
                     return null; // Stop retrying
                 }
-                // Exponential backoff: 2^retries * 100ms, capped at 3 seconds
-                return Math.min(2 ** times * 100, 3000);
+                // Exponential backoff: 2^retries * 100ms, capped at 30 seconds
+                return Math.min(2 ** times * 100, 30000);
             },
-            maxRetriesPerRequest: null, // Unlimited retries for individual commands while connection is down
+            maxRetriesPerRequest: 3, // Retry individual commands up to 3 times
             enableOfflineQueue: true, // Queue commands when disconnected
             connectTimeout: 10000, // 10 seconds timeout for initial connection
         });

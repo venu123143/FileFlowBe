@@ -1,3 +1,4 @@
+import crypto from "crypto";
 import constants from "@/global/constants";
 import jwt from "@/utils/jwt-token";
 import { hashRefreshToken } from "@/utils/token-hash";
@@ -11,6 +12,11 @@ interface RefreshTokenMetadata {
     userAgent?: string;
 }
 
+interface RotateFrom {
+    id: string;
+    tokenHash: string;
+}
+
 interface TokenPair {
     accessToken: string;
     refreshToken: string;
@@ -22,7 +28,11 @@ interface TokenPair {
  * Generate both access token and refresh token for a user
  * Stores refresh token in database (hashed) and Redis
  */
-async function generateTokenPair(user: IUserAttributes, metadata?: RefreshTokenMetadata): Promise<TokenPair> {
+async function generateTokenPair(
+    user: IUserAttributes,
+    metadata?: RefreshTokenMetadata,
+    rotateFrom?: RotateFrom
+): Promise<TokenPair> {
     const issuedAt = Math.floor(Date.now() / 1000);
     const accessTokenExpiresIn = constants.ACCESS_TOKEN_EXPIRY_TIME;
     const refreshTokenExpiresIn = constants.REFRESH_TOKEN_EXPIRY_TIME;
@@ -30,10 +40,14 @@ async function generateTokenPair(user: IUserAttributes, metadata?: RefreshTokenM
     const accessTokenExpiresAt = issuedAt + accessTokenExpiresIn;
     const refreshTokenExpiresAt = issuedAt + refreshTokenExpiresIn;
 
+    // One session id per device login; it survives refresh-token rotation
+    const sessionId = rotateFrom?.id ?? crypto.randomUUID();
+
     const payload = {
         id: user.id,
         email: user.email,
         role: user.role,
+        sid: sessionId,
     };
 
     // Generate tokens
@@ -43,15 +57,29 @@ async function generateTokenPair(user: IUserAttributes, metadata?: RefreshTokenM
     // Hash the refresh token for storage
     const tokenHash = hashRefreshToken(rawRefreshToken);
 
-    // Save refresh token to database
-    const refreshTokenRecord = await refreshTokenRepository.createRefreshToken({
-        user_id: user.id,
-        token_hash: tokenHash,
-        expires_at: new Date(refreshTokenExpiresAt * 1000),
-        revoked: false,
-        ip: metadata?.ip,
-        user_agent: metadata?.userAgent,
-    });
+    if (rotateFrom) {
+        // Refresh: update the existing session row instead of inserting a new one
+        const rotated = await refreshTokenRepository.rotateRefreshTokenInPlace(rotateFrom.id, rotateFrom.tokenHash, {
+            token_hash: tokenHash,
+            expires_at: new Date(refreshTokenExpiresAt * 1000),
+            ip: metadata?.ip,
+            user_agent: metadata?.userAgent,
+        });
+        if (!rotated) {
+            throw new Error('Refresh token was already used or revoked');
+        }
+    } else {
+        // Login: a new device session
+        await refreshTokenRepository.createRefreshToken({
+            id: sessionId,
+            user_id: user.id,
+            token_hash: tokenHash,
+            expires_at: new Date(refreshTokenExpiresAt * 1000),
+            revoked: false,
+            ip: metadata?.ip,
+            user_agent: metadata?.userAgent,
+        });
+    }
 
     // Store access token in Redis with TTL for fast validation
     const client = redisConn.getClient();
@@ -110,25 +138,15 @@ async function rotateRefreshToken(oldRefreshToken: string, metadata?: RefreshTok
             throw new Error('Refresh token expired');
         }
 
-        // 6. Generate new token pair
+        // 6. Issue a new pair on the same session row (atomic; a concurrent
+        //    refresh with the same token fails instead of creating a duplicate session)
         const user: IUserAttributes = {
             id: userId,
             email: payload.email,
             role: payload.role,
         } as IUserAttributes;
 
-        const newTokenPair = await generateTokenPair(user, metadata);
-
-        // 7. Mark old token as revoked and link to new token
-        // We need to get the new token's ID from the hash
-        const newTokenHash = hashRefreshToken(newTokenPair.refreshToken);
-        const newTokenRecord = await refreshTokenRepository.findRefreshTokenByHash(newTokenHash);
-
-        await refreshTokenRepository.updateRefreshToken(savedToken.id!, {
-            revoked: true,
-            replaced_by: newTokenRecord?.id,
-            last_used_at: new Date(),
-        });
+        const newTokenPair = await generateTokenPair(user, metadata, { id: savedToken.id!, tokenHash });
 
         // Note: Access tokens in Redis will expire automatically via TTL
         // No need to manually delete them during refresh token rotation
@@ -145,8 +163,8 @@ async function rotateRefreshToken(oldRefreshToken: string, metadata?: RefreshTok
  */
 async function revokeRefreshToken(refreshToken: string): Promise<boolean> {
     try {
-        // const tokenHash = hashRefreshToken(refreshToken);
-        const savedToken = await refreshTokenRepository.findRefreshTokenByHash(refreshToken);
+        const tokenHash = hashRefreshToken(refreshToken);
+        const savedToken = await refreshTokenRepository.findRefreshTokenByHash(tokenHash);
 
         if (!savedToken) {
             return false;
@@ -162,6 +180,13 @@ async function revokeRefreshToken(refreshToken: string): Promise<boolean> {
     } catch (err) {
         throw err;
     }
+}
+
+/**
+ * Revoke one session (device) belonging to a user
+ */
+async function revokeSession(userId: string, sessionId: string): Promise<boolean> {
+    return await refreshTokenRepository.revokeSessionForUser(sessionId, userId);
 }
 
 /**
@@ -197,6 +222,7 @@ export default {
     generateTokenPair,
     rotateRefreshToken,
     revokeRefreshToken,
+    revokeSession,
     revokeAllUserTokens,
     getActiveRefreshTokens,
     cleanupTokens,

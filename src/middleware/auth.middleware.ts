@@ -7,6 +7,38 @@ import redisConn from "@/config/redis.config";
 import redisConstants from "@/global/redis-constants";
 import { getValidPinSession } from "@/core/session";
 import crypto from "crypto";
+import { UserRole, type IUserAttributes } from "@/models/User.model";
+import { ConnectionError, ConnectionRefusedError, HostNotFoundError, HostNotReachableError, InvalidConnectionError, ConnectionTimedOutError } from "sequelize";
+
+/**
+ * Check if an error is a transient database connection error
+ */
+function isTransientDbError(error: unknown): boolean {
+    if (!error) return false;
+    
+    if (error instanceof ConnectionError ||
+        error instanceof ConnectionRefusedError ||
+        error instanceof HostNotFoundError ||
+        error instanceof HostNotReachableError ||
+        error instanceof InvalidConnectionError ||
+        error instanceof ConnectionTimedOutError) {
+        return true;
+    }
+    
+    if (error instanceof Error) {
+        const message = error.message;
+        return message.includes('Connection terminated unexpectedly') ||
+               message.includes('Connection reset by peer') ||
+               message.includes('Broken pipe') ||
+               message.includes('ECONNRESET') ||
+               message.includes('ETIMEDOUT') ||
+               message.includes('socket hang up') ||
+               message.includes('Connection lost') ||
+               message.includes('connection terminated');
+    }
+    
+    return false;
+}
 
 
 
@@ -31,11 +63,22 @@ const verifyBearerToken = async (c: Context, token: string, next: Next) => {
 
         // Attach the user object to the context for downstream handlers
         c.set("user", find_user);
-        await next();
+        c.set("session_id", jwt_decode.sid ?? null);
     } catch (error) {
+        // Handle transient database errors - return 503 so client can retry
+        if (isTransientDbError(error)) {
+            console.error("Transient DB error in verifyBearerToken:", error);
+            return res.FailureResponse(c, 503, { 
+                message: "Service temporarily unavailable. Please retry.", 
+                retryable: true 
+            });
+        }
+        
         const errorMessage = error instanceof Error ? error.message : String(error);
         return res.FailureResponse(c, 401, { message: "Login expired.", error: errorMessage });
     }
+
+    await next();
 }
 
 
@@ -69,12 +112,21 @@ const verifyApiToken = async (c: Context, token: string, next: Next) => {
         }
 
         c.set("user", user);
-        await next();
-
     } catch (error) {
+        // Handle transient database errors - return 503 so client can retry
+        if (isTransientDbError(error)) {
+            console.error("Transient DB error in verifyApiToken:", error);
+            return res.FailureResponse(c, 503, { 
+                message: "Service temporarily unavailable. Please retry.", 
+                retryable: true 
+            });
+        }
+        
         const errorMessage = error instanceof Error ? error.message : String(error);
         return res.FailureResponse(c, 401, { message: "Invalid API token.", error: errorMessage });
     }
+
+    await next();
 }
 
 
@@ -138,9 +190,6 @@ const pinSessionMiddleware: MiddlewareHandler = async (c: Context, next: Next) =
                 message: "PIN session user mismatch."
             });
         }
-
-        // PIN session is valid, proceed to next middleware/route
-        await next();
     } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error);
         return res.FailureResponse(c, 500, {
@@ -148,9 +197,33 @@ const pinSessionMiddleware: MiddlewareHandler = async (c: Context, next: Next) =
             error: errorMessage
         });
     }
+
+    // PIN session is valid, proceed to next middleware/route
+    await next();
 };
+
+function checkPermissions(roles: UserRole[]) {
+    return async (c: Context, next: Next) => {
+        const user = c.get('user') as IUserAttributes;
+
+        if (!user) {
+            return res.FailureResponse(c, 401, { message: "Unauthorized." });
+        }
+
+        if (!roles.includes(user.role)) {
+            return res.FailureResponse(c, 403, {
+                message: "Forbidden, you don't have permission to perform this action."
+            });
+        }
+
+        await next(); // ✅ IMPORTANT
+    };
+}
+
+
 
 export default {
     authMiddleware,
+    checkPermissions,
     pinSessionMiddleware,
 };

@@ -1,3 +1,4 @@
+import type { AudioTrackInfo } from '@/services/video-processor.service';
 import { DataTypes, Model, type Optional, Sequelize } from 'sequelize';
 
 // Access control enum
@@ -13,6 +14,7 @@ export interface IFileInfo {
     storage_path: string;     // internal storage path
     thumbnail_path?: string;   // path to generated thumbnail (if image/video)
     duration?: number;         // media duration in seconds (for audio/video)                        // image/video dimensions
+    audio_tracks?: AudioTrackInfo[];
 }
 
 
@@ -20,7 +22,7 @@ export interface IFileInfo {
 export interface FileAttributes {
     id?: string;
     owner_id: string;
-    parent_id?: string;
+    parent_id?: string | null;
     name: string;
     is_folder: boolean;
     access_level: AccessLevel;
@@ -39,7 +41,7 @@ export interface FileCreationAttributes extends Optional<FileAttributes, 'id' | 
 export class File extends Model<FileAttributes, FileCreationAttributes> implements FileAttributes {
     declare id: string;
     declare owner_id: string;
-    declare parent_id?: string;
+    declare parent_id?: string | null;
     declare name: string;
     declare is_folder: boolean;
     declare access_level: AccessLevel;

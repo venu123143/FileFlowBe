@@ -2,9 +2,14 @@ import { type Context } from "hono"
 import res from "@/utils/response"
 import uploadService from "@/services/upload.service"
 import s3Service from "@/config/s3.config"
+import videoProcessor from "@/services/video-processor.service"
 import type { IUserAttributes } from "@/models/User.model"
 import { NotificationType, type IFileInfo } from "@/models"
 import { addToNotificationQueue } from "@/core/notification-queue"
+import { addToAnalyticsQueue, AnalyticsEventType } from "@/core/analytics-queue"
+import { addCacheWarmJob } from "@/repository/cache.repository"
+import { CacheJobType } from "@/types/cache.types"
+import { canUserAccessStoragePaths } from "@/utils/file-access"
 
 const uploadFile = async (c: Context) => {
     const user = c.get("user") as IUserAttributes
@@ -32,6 +37,37 @@ const uploadFile = async (c: Context) => {
                 data: { results },
                 related_user_id: user.id,
             })
+
+            // Track upload analytics for each file
+            files.forEach((file, index) => {
+                const result = results[index];
+                if (result) {
+                    addToAnalyticsQueue({
+                        userId: user.id,
+                        eventType: AnalyticsEventType.FILE_UPLOADED,
+                        metadata: {
+                            fileName: file.name,
+                            fileSize: result.file_size,
+                            fileType: result.file_type,
+                            isFolder: false
+                        }
+                    });
+                }
+            });
+
+            // Queue cache warming for video files (public videos only)
+            const videoKeys = results
+                .filter(r => r.file_type?.startsWith('video/'))
+                .map(r => r.storage_path);
+
+            if (videoKeys.length > 0) {
+                try {
+                    await addCacheWarmJob(videoKeys, CacheJobType.WARM, user?.id, 3);
+                    console.log('[Upload] Cache warming jobs queued for:', videoKeys);
+                } catch (warmErr) {
+                    console.warn('[Upload] Failed to queue cache warming jobs:', warmErr);
+                }
+            }
         }
         return res.SuccessResponse(c, 200, {
             message: "File(s) uploaded successfully",
@@ -48,6 +84,11 @@ const deleteFile = async (c: Context) => {
     try {
         const validatedParams = c.get('validatedParams') as { fileName: string }
         const { fileName } = validatedParams
+
+        const canDelete = await canUserAccessStoragePaths(user, [fileName], 'write')
+        if (!canDelete) {
+            return res.FailureResponse(c, 403, { message: "Forbidden: you do not have permission to delete this file" })
+        }
 
         await s3Service.deleteFile(fileName)
         if (user?.id) {
@@ -72,13 +113,37 @@ const deleteFile = async (c: Context) => {
 }
 
 const getFiles = async (c: Context) => {
+    const user = c.get("user") as IUserAttributes
     try {
-        const validatedParams = c.get('validatedQuery') as { fileName: string }
-        const { fileName } = validatedParams
+        const validatedParams = c.get('validatedQuery') as {
+            fileName: string
+            download?: boolean
+            downloadName?: string
+        }
+        const { fileName, download, downloadName } = validatedParams
 
-        const url = await s3Service.getFileUrl(fileName)
+        const canRead = await canUserAccessStoragePaths(user, [fileName], 'read')
+        if (!canRead) {
+            return res.FailureResponse(c, 403, { message: "Forbidden: you do not have permission to access this file" })
+        }
+
+        const resolvedDownloadName = download
+            ? (downloadName || fileName.split('/').pop() || 'download')
+            : undefined;
+        const url = await s3Service.getFileUrl(fileName, 3600, resolvedDownloadName)
         if (!url) {
             return res.FailureResponse(c, 404, { message: "File not found" })
+        }
+
+        if (download && user?.id) {
+            addToAnalyticsQueue({
+                userId: user.id,
+                eventType: AnalyticsEventType.FILE_DOWNLOADED,
+                metadata: {
+                    fileName: resolvedDownloadName || fileName,
+                    storagePath: fileName,
+                },
+            });
         }
 
         return res.SuccessResponse(c, 200, {
@@ -154,12 +219,47 @@ const completeUpload = async (c: Context) => {
         await s3Service.completeMultipartUpload(uploadId, key, parts);
         const metadata = await s3Service.getMetadata(key);
 
+        // Base file info
         const result: IFileInfo = {
             file_size: metadata.contentLength || 0,
             file_type: metadata.contentType || '',
             storage_path: key
         }
-        
+
+        // Extract video metadata for video files
+        let videoMetadata = null;
+        let audioTrackOptions = null;
+
+        if (metadata.contentType?.startsWith('video/')) {
+            try {
+                // Get presigned URL for video processing (valid for 1 hour)
+                const presignedUrl = await s3Service.getFileUrl(key, 3600);
+
+                // Extract video metadata including audio tracks
+                videoMetadata = await videoProcessor.extractVideoMetadata(presignedUrl);
+
+                // Add duration to result
+                if (videoMetadata.duration) {
+                    result.duration = Math.round(videoMetadata.duration);
+                }
+
+                // Convert audio tracks to frontend format
+                if (videoMetadata.audioTracks.length > 0) {
+                    audioTrackOptions = videoProcessor.convertToAudioTrackOptions(videoMetadata.audioTracks);
+                    // Store audio tracks in metadata for database
+                    result.audio_tracks = videoMetadata.audioTracks;
+                }
+                console.log('[Upload] Video metadata extracted:', {
+                    duration: videoMetadata.duration,
+                    audioTracks: videoMetadata.audioTracks.length,
+                    resolution: videoMetadata.resolution,
+                });
+            } catch (videoErr) {
+                console.warn('[Upload] Video metadata extraction failed:', videoErr);
+                // Don't fail the upload if metadata extraction fails
+            }
+        }
+
         if (user?.id) {
             const fileName = key.split('/').pop() || 'Unknown file'
             addToNotificationQueue({
@@ -174,10 +274,27 @@ const completeUpload = async (c: Context) => {
             })
         }
 
+        // Queue cache warming for video files (public videos only)
+        if (metadata.contentType?.startsWith('video/')) {
+            await addCacheWarmJob([key], CacheJobType.WARM, user?.id, 3);
+        }
+
+        // Return enhanced response with video metadata
+        const responseData = {
+            ...result,
+            ...(videoMetadata && {
+                duration: result.duration,
+                audio_tracks: audioTrackOptions,
+                video_codec: videoMetadata.videoCodec,
+                resolution: videoMetadata.resolution,
+                video_bitrate: videoMetadata.bitrate,
+            }),
+        };
+
         return res.SuccessResponse(c, 200, {
             message: "Upload completed successfully",
-            data: result
-        })        
+            data: responseData
+        })
     } catch (error: any) {
         if (user?.id) {
             const fileName = key.split('/').pop() || 'Unknown file'
@@ -269,7 +386,39 @@ const getPartsByUploadKey = async (c: Context) => {
     }
 }
 
+const getAllFiles = async (c: Context) => {
+    try {
+        const validatedQuery = c.get('validatedQuery') as {
+            folder?: string;
+            maxKeys?: number;
+            continuationToken?: string
+        };
+        const { folder, maxKeys = 100, continuationToken } = validatedQuery || {};
+
+        const result = await s3Service.getAllFiles(folder, maxKeys, continuationToken);
+        return res.SuccessResponse(c, 200, {
+            message: "All files retrieved successfully",
+            data: {
+                files: result.files,
+                pagination: {
+                    hasMore: result.isTruncated,
+                    nextContinuationToken: result.nextContinuationToken || null,
+                    maxKeys: maxKeys,
+                    currentCount: result.files.length
+                }
+            },
+        })
+    } catch (error: any) {
+        console.log("error", error);
+        return res.FailureResponse(c, 500, {
+            message: "Failed to get all files",
+            error: error.message,
+        })
+    }
+}
+
 export default {
+    getAllFiles,
     getPartsByUploadKey,
     initiateUpload,
     uploadFile,

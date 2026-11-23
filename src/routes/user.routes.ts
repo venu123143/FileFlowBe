@@ -26,6 +26,8 @@ export class AuthRouter {
         this.router.post('/user/set-pin', AuthMiddleware.authMiddleware, validateBody(userDtoValidation.setPinValidation), AuthController.setPin);
         this.router.put('/user/change-pin', AuthMiddleware.authMiddleware, validateBody(userDtoValidation.changePinValidation), AuthController.changePin);
         this.router.get('/user/get-session', AuthMiddleware.authMiddleware, AuthMiddleware.pinSessionMiddleware, AuthController.getSession);
+        // No pinSessionMiddleware here: an expired PIN session must still be clearable.
+        this.router.post('/user/revoke-session', AuthMiddleware.authMiddleware, AuthController.revokeSession);
     }
 
     /**
@@ -44,6 +46,9 @@ export class AuthRouter {
 
         // GET /auth/sessions - Get all active sessions for the authenticated user
         this.router.get('/sessions', AuthMiddleware.authMiddleware, TokenAuthController.getActiveSessions);
+
+        // DELETE /auth/sessions/:id - Revoke one of the user's own sessions
+        this.router.delete('/sessions/:id', AuthMiddleware.authMiddleware, TokenAuthController.revokeSessionById);
     }
 
     public getRouter() {

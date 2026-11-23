@@ -67,6 +67,28 @@ const revokeToken = async (c: Context) => {
 };
 
 /**
+ * DELETE /auth/sessions/:id
+ * Revoke one of the authenticated user's sessions (logout a single device)
+ */
+const revokeSessionById = async (c: Context) => {
+    try {
+        const user = c.get('user');
+        if (!user) {
+            return res.FailureResponse(c, 401, { message: "User not authenticated." });
+        }
+        const sessionId = c.req.param('id');
+        const success = await authService.revokeSession(user.id, sessionId);
+        if (!success) {
+            return res.FailureResponse(c, 404, { message: "Session not found" });
+        }
+        return res.SuccessResponse(c, 200, { message: "Session revoked successfully", data: {} });
+    } catch (error) {
+        console.error("Revoke session error:", error);
+        return res.FailureResponse(c, 500, { message: "Failed to revoke session" });
+    }
+};
+
+/**
  * POST /auth/revoke-all
  * Revoke all refresh tokens for the authenticated user (logout from all devices)
  */
@@ -108,16 +130,17 @@ const getActiveSessions = async (c: Context) => {
         }
 
         const sessions = await authService.getActiveRefreshTokens(user.id);
+        const currentSessionId = c.get('session_id');
 
-        // Map to user-friendly format (don't expose token hashes)
+        // Never expose the stored token hash to the client
         const sessionData = sessions.map(session => ({
             id: session.id,
-            refresh_token: session.token_hash,
             created_at: session.created_at,
             expires_at: session.expires_at,
             last_used_at: session.last_used_at,
             ip: session.ip,
             user_agent: session.user_agent,
+            is_current: session.id === currentSessionId,
         }));
 
         return res.SuccessResponse(c, 200, {
@@ -140,4 +163,5 @@ export default {
     revokeToken,
     revokeAllTokens,
     getActiveSessions,
+    revokeSessionById,
 };

@@ -9,6 +9,7 @@ import {
     UploadPartCommand,
     AbortMultipartUploadCommand,
     CompleteMultipartUploadCommand,
+    CopyObjectCommand,
     type PutObjectCommandInput,
     HeadObjectCommand,
     ListObjectsV2Command,
@@ -19,6 +20,7 @@ import crypto from "crypto";
 import constants from "@/global/constants";
 import { type IFile } from "@/services/upload.service";
 import slugify from "slugify"; // npm i slugify
+import path from "path";
 
 export interface ChunkMetadata {
     chunkNumber: number;
@@ -53,7 +55,20 @@ export class S3Service {
     }
 
     public buildCDNUrl(key: string): string {
-        return `https://${config.CLOUDFLARE.CDN_DOMAIN}/${key}`;
+        return `${config.S3.CDN_URL}/${key}`;
+    }
+
+    /**
+     * Sanitizes metadata values to ensure they're valid for HTTP headers.
+     * HTTP headers cannot contain certain characters like non-ASCII, control characters, etc.
+     */
+    private sanitizeMetadataValue(value: string): string {
+        // Replace non-ASCII and control characters with safe equivalents
+        // Keep only alphanumeric, spaces, hyphens, underscores, and periods
+        return value
+            .replace(/[^\x20-\x7E]/g, '') // Remove non-printable ASCII
+            .replace(/[<>:"/\\|?*\x00-\x1F]/g, '_') // Replace invalid chars with underscore
+            .substring(0, 2000); // AWS metadata value limit is 2KB
     }
 
     private calculateChunkChecksum(chunkBuffer: Buffer<ArrayBuffer>): string {
@@ -63,17 +78,20 @@ export class S3Service {
     }
 
     public async uploadFile(file: IFile): Promise<string> {
+        // Sanitize original name for HTTP header compatibility
+        const sanitizedOriginalName = this.sanitizeMetadataValue(file.originalName);
+
         const params: PutObjectCommandInput = {
             Bucket: config.S3.BUCKET_NAME,
             Key: `${FolderNameEnum.FILES}/${file.filename}`,
             Body: file.buffer,
             ContentType: file.mimetype,
             Metadata: {
-                originalName: file.originalName,
+                originalName: sanitizedOriginalName,
                 uploadedAt: new Date().toISOString(),
                 size: file.size.toString(),
             },
-            CacheControl: `public, max-age=${config.CLOUDFLARE.DEFAULT_TTL}`
+            CacheControl: 'public, max-age=31536000, immutable',
         };
 
         await this.s3Client.send(new PutObjectCommand(params));
@@ -85,30 +103,68 @@ export class S3Service {
         buffer: Buffer,
         fileName: string,
         mimeType: string,
-        folder: FolderNameEnum = FolderNameEnum.FILES
+        folder: FolderNameEnum = FolderNameEnum.FILES,
+        cacheControl: string = 'public, max-age=31536000, immutable'
     ): Promise<string> {
         const path = `${folder}/${key}`;
+        // Sanitize original name for HTTP header compatibility
+        const sanitizedOriginalName = this.sanitizeMetadataValue(fileName);
+
         const params = {
             Bucket: config.S3.BUCKET_NAME,
             Key: path,
             Body: buffer,
             ContentType: mimeType,
             Metadata: {
-                originalName: fileName,
+                originalName: sanitizedOriginalName,
                 uploadedAt: new Date().toISOString(),
                 size: buffer.length.toString(),
             },
-            CacheControl: 'public, max-age=31536000',
+            CacheControl: cacheControl,
         };
 
         await this.s3Client.send(new PutObjectCommand(params));
         return this.buildCDNUrl(path);
     }
 
-    public async getFileUrl(key: string, expiresIn: number = 3600): Promise<string> {
+    public async uploadStream(
+        key: string,
+        stream: any,
+        fileName: string,
+        mimeType: string,
+        size: number,
+        folder: FolderNameEnum = FolderNameEnum.FILES,
+        cacheControl: string = 'public, max-age=31536000, immutable'
+    ): Promise<string> {
+        const path = `${folder}/${key}`;
+        const sanitizedOriginalName = this.sanitizeMetadataValue(fileName);
+
+        const params = {
+            Bucket: config.S3.BUCKET_NAME,
+            Key: path,
+            Body: stream,
+            ContentType: mimeType,
+            ContentLength: size, // Required for streaming
+            Metadata: {
+                originalName: sanitizedOriginalName,
+                uploadedAt: new Date().toISOString(),
+                size: size.toString(),
+            },
+            CacheControl: cacheControl,
+        };
+
+        await this.s3Client.send(new PutObjectCommand(params));
+        return this.buildCDNUrl(path);
+    }
+
+    public async getFileUrl(key: string, expiresIn: number = 3600, downloadFileName?: string): Promise<string> {
+        const safeName = downloadFileName
+            ? path.basename(downloadFileName).replace(/["\r\n\\]/g, '_').trim() || 'download'
+            : undefined;
         const command = new GetObjectCommand({
             Bucket: config.S3.BUCKET_NAME,
             Key: key,
+            ...(safeName ? { ResponseContentDisposition: `attachment; filename="${safeName}"` } : {}),
         });
         return await getSignedUrl(this.s3Client, command, { expiresIn });
     }
@@ -122,10 +178,29 @@ export class S3Service {
         return {
             contentType: response.ContentType,
             contentLength: response.ContentLength,
+            cacheControl: response.CacheControl,
             lastModified: response.LastModified,
             metadata: response.Metadata,
             etag: response.ETag,
         };
+    }
+
+    public async updateObjectCacheControl(
+        key: string,
+        cacheControl: string = 'public, max-age=31536000, immutable',
+        contentType?: string
+    ): Promise<void> {
+        const existing = await this.getMetadata(key);
+        const encodedKey = key.split('/').map(encodeURIComponent).join('/');
+        await this.s3Client.send(new CopyObjectCommand({
+            Bucket: config.S3.BUCKET_NAME,
+            CopySource: `${config.S3.BUCKET_NAME}/${encodedKey}`,
+            Key: key,
+            MetadataDirective: 'REPLACE',
+            ContentType: contentType || existing.contentType || 'application/octet-stream',
+            CacheControl: cacheControl,
+            Metadata: existing.metadata,
+        }));
     }
 
     public async deleteFile(key: string) {
@@ -163,30 +238,52 @@ export class S3Service {
                 size: obj.Size!,
                 lastModified: obj.LastModified!,
                 etag: obj.ETag!,
-                cdnUrl: this.buildCDNUrl(obj.Key!)
+                storageClass: obj.StorageClass,
+                owner: obj.Owner ? {
+                    displayName: obj.Owner.DisplayName,
+                    id: obj.Owner.ID
+                } : undefined,
+                cdnUrl: this.buildCDNUrl(obj.Key!),
+                // Include all other S3 properties
+                ...(obj as any)
             })) || [],
             isTruncated: response.IsTruncated || false,
             nextContinuationToken: response.NextContinuationToken,
+            keyCount: response.KeyCount,
+            maxKeys: response.MaxKeys,
+            prefix: response.Prefix,
+            delimiter: response.Delimiter,
+            encodingType: response.EncodingType,
+            commonPrefixes: response.CommonPrefixes,
         };
     }
 
+    public async getAllFiles(folder?: string, maxKeys: number = 100, continuationToken?: string) {
+        // Convert string folder name to FolderNameEnum if provided
+        const folderEnum = folder ? (folder as FolderNameEnum) : undefined;
+        return await this.listFiles(folderEnum, maxKeys, continuationToken);
+    }
+
     public async initiateMultipartUpload(fileName: string, mimeType: string): Promise<{ uploadId: string | undefined; key: string }> {
-        const safeName = slugify(fileName, {
+        const ext = path.extname(fileName);  // e.g. ".mp4"
+        const nameWithoutExt = path.basename(fileName, ext);
+        const safeName = slugify(nameWithoutExt, {
             replacement: "_",  // replace invalid chars with underscore
             remove: /[<>:"/\\|?*\x00-\x1F]/g, // remove invalid S3 header characters
             lower: false,
             strict: true
-        });
-        const key = `${FolderNameEnum.VIDEOS}/${safeName}`;
+        }) || 'file';
+        const uniqueSuffix = `${Date.now()}_${Math.round(Math.random() * 1e9)}`;
+        const key = `${FolderNameEnum.VIDEOS}/${safeName}_${uniqueSuffix}${ext}`;
         const { UploadId } = await this.s3Client.send(new CreateMultipartUploadCommand({
             Bucket: config.S3.BUCKET_NAME,
             Key: key,
             ContentType: mimeType,
             Metadata: {
-                originalName: safeName,
+                originalName: this.sanitizeMetadataValue(fileName),
                 uploadStarted: new Date().toISOString(),
             },
-            // CacheControl: 'public, max-age=31536000',
+            CacheControl: 'public, max-age=31536000, immutable',
         }));
 
         return { uploadId: UploadId, key };
@@ -260,7 +357,7 @@ export class S3Service {
         const urls = keys.map(key => this.buildCDNUrl(key));
 
         const response = await fetch(
-            `${constants.CLOUDFLARE_BASE_URL}/client/v4/zones/${config.CLOUDFLARE.ZONE_ID}/purge_cache`,
+            `${constants.CLOUDFLARE_BASE_URL}/zones/${config.CLOUDFLARE.ZONE_ID}/purge_cache`,
             {
                 method: 'POST',
                 headers: {

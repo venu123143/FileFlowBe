@@ -40,6 +40,35 @@ const updateRefreshToken = async (id: string, updates: Partial<IRefreshTokenAttr
 };
 
 /**
+ * Rotate a session's refresh token in place.
+ * The row (id, created_at) stays the same so one row == one device session.
+ * The WHERE on token_hash makes this an atomic compare-and-swap: when two
+ * requests rotate the same token concurrently only one of them updates a row.
+ */
+const rotateRefreshTokenInPlace = async (
+    id: string,
+    oldTokenHash: string,
+    updates: { token_hash: string; expires_at: Date; ip?: string | null; user_agent?: string | null }
+) => {
+    const [affectedRows] = await db.RefreshToken.update(
+        { ...updates, last_used_at: new Date() },
+        { where: { id, token_hash: oldTokenHash, revoked: false } }
+    );
+    return affectedRows > 0;
+};
+
+/**
+ * Revoke a session owned by a user (never touches another user's session)
+ */
+const revokeSessionForUser = async (id: string, userId: string) => {
+    const [affectedRows] = await db.RefreshToken.update(
+        { revoked: true },
+        { where: { id, user_id: userId, revoked: false } }
+    );
+    return affectedRows > 0;
+};
+
+/**
  * Revoke a specific refresh token by ID
  */
 const revokeRefreshTokenById = async (id: string) => {
@@ -109,6 +138,8 @@ export default {
     findRefreshTokenByHash,
     findRefreshTokenById,
     updateRefreshToken,
+    rotateRefreshTokenInPlace,
+    revokeSessionForUser,
     revokeRefreshTokenById,
     revokeAllRefreshTokensForUser,
     findActiveRefreshTokensForUser,

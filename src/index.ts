@@ -6,10 +6,12 @@ import config from "@/config/config";
 const app = new App();
 const socketEngine = app.getSocketEngine();
 const port = config.PORT || 3000;
+const hostname = "0.0.0.0"; // Use IP from env or default to 0.0.0.0 (all interfaces)
 
 // Start Bun server
 Bun.serve({
   port,
+  // hostname,
   idleTimeout: 30,
   websocket: socketEngine.handler().websocket, // <-- attach WebSocket handler
   async fetch(req, server) {
@@ -36,4 +38,6 @@ Bun.serve({
     : {}),
 });
 
-console.log(`🚀 Server running on http${config.HTTP2.SSL.ENABLED ? "s" : ""}://localhost:${port}`);
+const protocol = config.HTTP2.SSL.ENABLED ? "https" : "http";
+const displayHost = hostname === "0.0.0.0" ? "localhost" : hostname;
+console.log(`🚀 Server running on ${protocol}://${displayHost}:${port}`);

@@ -6,6 +6,8 @@ export interface TokenAttributes {
     id: string;
     email: string;
     role: string;
+    /** Refresh-token row id this token belongs to (one row = one device session) */
+    sid?: string;
 }
 
 async function generateEncryptedPayload(payload: TokenAttributes): Promise<string> {

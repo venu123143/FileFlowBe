@@ -136,6 +136,56 @@ const fileInfoValidation = Joi.object({
             "number.base": "Duration must be a number in seconds.",
             "number.min": "Duration cannot be negative."
         }),
+
+    // Video metadata fields (supports both frontend AudioTrackOption and backend AudioTrackInfo shapes)
+    audio_tracks: Joi.array()
+        .items(Joi.object({
+            id: Joi.string().optional(),
+            label: Joi.string().optional(),
+            kind: Joi.string().valid('main', 'commentary', 'dub', 'description', 'alternative').optional(),
+            default: Joi.boolean().optional(),
+            src: Joi.string().optional(),
+            index: Joi.number().integer().min(0).optional(),
+            codec: Joi.string().optional(),
+            language: Joi.string().optional(),
+            title: Joi.string().optional(),
+            channels: Joi.number().integer().min(1).allow(null).optional(),
+            sample_rate: Joi.number().integer().min(1).allow(null).optional(),
+            sampleRate: Joi.number().integer().min(1).allow(null).optional(),
+            bitrate: Joi.number().integer().min(1).allow(null).optional(),
+            is_default: Joi.boolean().optional(),
+            isDefault: Joi.boolean().optional(),
+            is_forced: Joi.boolean().optional(),
+            isForced: Joi.boolean().optional(),
+        }))
+        .optional()
+        .messages({
+            "array.base": "Audio tracks must be an array."
+        }),
+
+    video_codec: Joi.string()
+        .allow(null, "")
+        .optional()
+        .messages({
+            "string.base": "Video codec must be a string."
+        }),
+
+    resolution: Joi.string()
+        .allow(null, "")
+        .optional()
+        .messages({
+            "string.base": "Resolution must be a string."
+        }),
+
+    video_bitrate: Joi.number()
+        .integer()
+        .min(0)
+        .allow(null)
+        .optional()
+        .messages({
+            "number.base": "Video bitrate must be a number.",
+            "number.min": "Video bitrate cannot be negative."
+        }),
 });
 
 
@@ -219,6 +269,27 @@ const updateFileAccessLevelValidation = Joi.object({
         })
 });
 
+const getPublicFilesValidation = Joi.object({
+    page: Joi.number()
+        .integer()
+        .min(1)
+        .default(1)
+        .messages({
+            "number.min": "Page must be greater than or equal to 1.",
+            "number.integer": "Page must be an integer."
+        }),
+    limit: Joi.number()
+        .integer()
+        .min(1)
+        .max(100)
+        .default(20)
+        .messages({
+            "number.min": "Limit must be at least 1.",
+            "number.max": "Limit must not exceed 100.",
+            "number.integer": "Limit must be an integer."
+        }),
+});
+
 export default {
     createFolderValidation,
     updateFolderValidation,
@@ -227,4 +298,5 @@ export default {
     createFileValidation,
     shareFileValidation,
     updateFileAccessLevelValidation,
+    getPublicFilesValidation,
 };
