@@ -157,10 +157,14 @@ export class S3Service {
         return this.buildCDNUrl(path);
     }
 
-    public async getFileUrl(key: string, expiresIn: number = 3600): Promise<string> {
+    public async getFileUrl(key: string, expiresIn: number = 3600, downloadFileName?: string): Promise<string> {
+        const safeName = downloadFileName
+            ? path.basename(downloadFileName).replace(/["\r\n\\]/g, '_').trim() || 'download'
+            : undefined;
         const command = new GetObjectCommand({
             Bucket: config.S3.BUCKET_NAME,
             Key: key,
+            ...(safeName ? { ResponseContentDisposition: `attachment; filename="${safeName}"` } : {}),
         });
         return await getSignedUrl(this.s3Client, command, { expiresIn });
     }

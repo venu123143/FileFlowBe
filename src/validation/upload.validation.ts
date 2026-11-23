@@ -131,6 +131,22 @@ const fileNameValidation = Joi.object({
         })
 });
 
+// Validation for get-file endpoint (optional attachment download disposition)
+const getFileValidation = Joi.object({
+    fileName: Joi.string()
+        .min(1)
+        .max(1000)
+        .required()
+        .messages({
+            'string.empty': 'File name is required',
+            'string.min': 'File name cannot be empty',
+            'string.max': 'File name is too long (maximum 1000 characters)',
+            'any.required': 'File name is required'
+        }),
+    download: Joi.boolean().optional(),
+    downloadName: Joi.string().max(255).optional(),
+});
+
 // Validation for uploadId parameter
 const uploadIdValidation = Joi.object({
     uploadId: Joi.string()
@@ -177,6 +193,7 @@ export default {
     abortUploadValidation,
     getPartsValidation,
     fileNameValidation,
+    getFileValidation,
     uploadIdValidation,
     getAllFilesValidation
 };

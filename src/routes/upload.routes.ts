@@ -57,7 +57,7 @@ export class UploadRouter {
         )
         this.router.get('/file/get-file',
             Middleware.authMiddleware,
-            validateQuery(uploadValidation.fileNameValidation),
+            validateQuery(uploadValidation.getFileValidation),
             uploadController.getFiles
         )
         this.router.delete('/file/:fileName',

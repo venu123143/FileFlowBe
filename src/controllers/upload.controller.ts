@@ -115,17 +115,35 @@ const deleteFile = async (c: Context) => {
 const getFiles = async (c: Context) => {
     const user = c.get("user") as IUserAttributes
     try {
-        const validatedParams = c.get('validatedQuery') as { fileName: string }
-        const { fileName } = validatedParams
+        const validatedParams = c.get('validatedQuery') as {
+            fileName: string
+            download?: boolean
+            downloadName?: string
+        }
+        const { fileName, download, downloadName } = validatedParams
 
         const canRead = await canUserAccessStoragePaths(user, [fileName], 'read')
         if (!canRead) {
             return res.FailureResponse(c, 403, { message: "Forbidden: you do not have permission to access this file" })
         }
 
-        const url = await s3Service.getFileUrl(fileName)
+        const resolvedDownloadName = download
+            ? (downloadName || fileName.split('/').pop() || 'download')
+            : undefined;
+        const url = await s3Service.getFileUrl(fileName, 3600, resolvedDownloadName)
         if (!url) {
             return res.FailureResponse(c, 404, { message: "File not found" })
+        }
+
+        if (download && user?.id) {
+            addToAnalyticsQueue({
+                userId: user.id,
+                eventType: AnalyticsEventType.FILE_DOWNLOADED,
+                metadata: {
+                    fileName: resolvedDownloadName || fileName,
+                    storagePath: fileName,
+                },
+            });
         }
 
         return res.SuccessResponse(c, 200, {
